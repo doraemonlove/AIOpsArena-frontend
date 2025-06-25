@@ -1,0 +1,179 @@
+import type { Madison } from '@/core/madison/core'
+import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
+import { LoginState } from '../types'
+import type { LoginOptions, RetrieveOptions } from '../types'
+import { loginByEmail, loginByUsername, retrieve } from './api'
+import {
+  code,
+  setToken,
+  localGet,
+  localSet,
+  messageUseI18n,
+  removeToken
+} from '@/core/madison/utils'
+import { MadisonAddon } from '@/core/madison/core/addon-base'
+import { DefPromiseHelper } from '@/core/madison/core/promise-helper'
+import type { RouterPromiseSyncFuncRes } from '@/core/madison/types'
+import { ref } from 'vue'
+
+export class Login extends MadisonAddon {
+  static TYPE_KEY = 'LOGIN_TYPE'
+  static LOGIN_KEY = 'LOGIN_K'
+  static LOGIN_PASSWORD = 'LOGIN_P'
+
+  private __state: LoginState = LoginState.READY
+  private __loginPromise: DefPromiseHelper = new DefPromiseHelper()
+  private __isLogin = ref(false)
+  private __pageWantToGo: RouteLocationNormalized | null = null
+
+  get state() {
+    return this.__state
+  }
+
+  get waitingForLogin() {
+    return this.__loginPromise.promise
+  }
+
+  get logged() {
+    return this.__isLogin
+  }
+
+  constructor(madison: Madison) {
+    super(madison)
+
+    madison.routerPromise.addPrecheck(this.precheck, this)
+    madison.routerPromise.addCheck(this.check, this, -999999)
+  }
+
+  logoutCallback(): void {}
+
+  /**
+   * 登录
+   * @param options
+   * @returns
+   */
+  async login(options?: LoginOptions): Promise<boolean> {
+    if (this.__state === LoginState.LOGGED) return true
+    if (!options) {
+      const type = localGet(Login.TYPE_KEY, 'username')
+      const loginKey = localGet(Login.LOGIN_KEY, '')
+      const passwordEncrypted = localGet(Login.LOGIN_PASSWORD, '')
+      if (
+        !type ||
+        !loginKey ||
+        !passwordEncrypted ||
+        !['username', 'email'].includes(type) ||
+        loginKey === '' ||
+        passwordEncrypted === ''
+      ) {
+        this.__state = LoginState.FAILURE
+        this.__loginPromise.resolve()
+        //
+        // 不提供options原则上仅用于this.check方法
+        // 用于测试自动登录是否成功
+        // 不做message的提示
+        //
+        return false
+      }
+      const nType = type as 'username' | 'email'
+      const passwordDecrypted = code.CryptoJS.decrypt(passwordEncrypted)
+      options = {
+        type: nType,
+        key: loginKey,
+        password: passwordDecrypted
+      }
+    }
+    const passwordEncrypted = code.CryptoJS.encrypt(options.password)
+    const res =
+      options.type === 'username' ? await loginByUsername(options) : await loginByEmail(options)
+    const data = res.data
+    if (!data || data.code !== 0) {
+      messageUseI18n(data.message, data.code)
+      this.__state = LoginState.FAILURE
+      this.__loginPromise.resolve()
+      this.__loginPromise = new DefPromiseHelper()
+      return false
+    }
+    // set token
+    setToken(data.data.token)
+    localSet(Login.TYPE_KEY, options.type)
+    localSet(Login.LOGIN_KEY, options.key)
+    localSet(Login.LOGIN_PASSWORD, passwordEncrypted)
+    this.__state = LoginState.LOGGED
+    this.__isLogin.value = true
+    this.__loginPromise.resolve()
+    return true
+  }
+
+  toLoginFromPage() {
+    if (this.__state !== LoginState.LOGGED) return
+    if (this.__pageWantToGo) {
+      this.__madison.routerPromise.router.push(this.__pageWantToGo)
+      this.__pageWantToGo = null
+    } else {
+      this.__madison.routerPromise.router.push({
+        name: 'home'
+      })
+    }
+  }
+
+  /**
+   * 返回true时需要进行路由跳转
+   * @returns
+   */
+  logout(): boolean {
+    if (this.__state === LoginState.LOGGED) {
+      this.__state = LoginState.LOGOUT
+      this.__loginPromise = new DefPromiseHelper()
+      this.__isLogin.value = false
+      removeToken()
+      localSet(Login.LOGIN_KEY, '')
+      localSet(Login.LOGIN_PASSWORD, '')
+      this.__madison.emit('logout')
+      return true
+    }
+    return false
+  }
+
+  precheck(to: RouteLocationNormalized, from: RouteLocationNormalized): RouterPromiseSyncFuncRes {
+    if (this.__state === LoginState.LOGOUT) {
+      this.__state = LoginState.READY
+      return ['redirect', { name: to.name, replace: true }]
+    }
+  }
+
+  /**
+   * 挂载到routerPromise的检查函数
+   * @param to
+   * @param from
+   * @param next
+   * @returns
+   */
+  async check(
+    to: RouteLocationNormalized,
+    from: RouteLocationNormalized
+  ): Promise<RouteLocationRaw | void> {
+    if (to.name === 'login' || to.name === 'register') return
+    if (this.__state === LoginState.READY) {
+      //
+      // 尝试登录
+      //
+      const res = await this.login()
+      if (res) return
+      this.__pageWantToGo = to
+      return { name: 'login' }
+    }
+    if (this.__state === LoginState.LOGGED) return
+    if (this.__state === LoginState.FAILURE) {
+      this.__pageWantToGo = to
+      return { name: 'login' }
+    }
+  }
+
+  async retrieve(options: RetrieveOptions): Promise<boolean> {
+    const res = await retrieve(options)
+    const data = res.data
+    if (data.code !== 0) messageUseI18n(data.message, data.code)
+    return data.code === 0
+  }
+}

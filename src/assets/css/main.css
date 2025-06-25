@@ -1,0 +1,24 @@
+@import './output.css';
+
+.el-table,
+.el-table tr,
+.el-table th.el-table__cell {
+  background-color: transparent !important;
+}
+
+.el-button + .el-button {
+  margin-left: 0 !important;
+}
+
+:root {
+  --bg-bg: #ffffff;
+  --bg-bg-rgb: 255, 255, 255;
+}
+.dark {
+  --bg-bg: #141414;
+  --bg-bg-rgb: 20, 20, 20;
+}
+
+.el-input--no-rounded .el-input__wrapper {
+  border-radius: 0px !important;
+}

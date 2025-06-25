@@ -73,23 +73,18 @@ export function deepClone(target: any, stack?: WeakMap<any, any>) {
  * @param type 提示类型（默认error）
  * @param duration 提示时长（默认3000(ms)）
  */
-export function message(msg: string, type?: string, duration?: number) {
+export function message(
+  msg: string,
+  type?: 'error' | 'success' | 'info' | 'warning',
+  duration?: number
+) {
   type = type || 'error'
   duration = duration || (type === 'error' ? 4000 : 3000)
-  switch (type) {
-    case 'error':
-    case 'success':
-    case 'info':
-    case 'warning':
-      ElMessage({
-        message: msg,
-        type: type,
-        duration: duration
-      })
-      break
-    default:
-      throw new Error(`不支持的type:${type}`)
-  }
+  ElMessage({
+    message: msg,
+    type: type,
+    duration: duration
+  })
 }
 
 /**
