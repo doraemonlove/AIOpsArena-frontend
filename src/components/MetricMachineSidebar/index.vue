@@ -2,7 +2,7 @@
 import { Madison } from '@/core/madison'
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import s2e from '@/components/TimeRangePicker/s2e.vue'
+import s2e from './s2e.vue'
 
 const firstIn = ref(true)
 setTimeout(() => {
@@ -13,7 +13,7 @@ const madison = Madison.getInstance()
 const machine = madison.metric.machine
 const namesapce = machine.namespace
 const type = machine.type
-const disable = machine.searching
+const disable = machine.isCreatingQueryTask
 const selectedMetricName = machine.selectedMetricName
 const nodeOrPodList = machine.nodeOrPodList
 

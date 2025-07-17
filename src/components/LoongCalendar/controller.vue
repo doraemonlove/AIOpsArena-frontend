@@ -17,7 +17,7 @@ const format = computed(() => {
 </script>
 
 <template>
-  <div style="width: 100%; height: 100%; display: flex; align-items: center; padding-left: 8rem; padding-right: 8rem; box-sizing: border-box; justify-content: space-between;">
+  <div style="width: 100%; height: 100%; display: flex; align-items: center; padding-left: 2rem; padding-right: 2rem; box-sizing: border-box; justify-content: space-between;">
     <div style="display: flex; align-items: center; gap: 1rem;">
       <div>
         <el-date-picker
@@ -59,7 +59,7 @@ const format = computed(() => {
     <div>
       <slot name="headerCenter" />
     </div>
-    <div style="display: flex; align-items: center; gap: 4rem;">
+    <div style="display: flex; align-items: center; gap: 1rem;">
       <div>
         <slot name="headerRightHead" />
       </div>

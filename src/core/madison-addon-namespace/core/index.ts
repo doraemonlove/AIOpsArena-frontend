@@ -85,23 +85,35 @@ export class Namespace extends MadisonAddon {
   constructor(madison: Madison) {
     super(madison)
 
-    madison.routerPromise.addCheck(this.check, this)
-    madison.routerPromise.addCheck(this.checkNamespace, this)
-    madison.routerPromise.addPrecheck(this.precheckNamespace, this)
-    madison.routerPromise.addPostcheck(this.postcheckNamespace, this)
+    madison.routerPromise.addCheck(this.check, this, -9999)
+    madison.routerPromise.addCheck(this.checkNamespace, this, -9999)
+    madison.routerPromise.addPrecheck(this.precheckNamespace, this, -9999)
+    madison.routerPromise.addPostcheck(this.postcheckNamespace, this, -9999)
   }
 
   logoutCallback(): void {
     this.__dataIsGot = false
     this.__paramNamespace.value = ''
     this.__queryNamespace.value = ''
-    this.__namespaces = computed(() => [])
   }
 
   precheckNamespace(to: RouteLocationNormalized, from: RouteLocationNormalized): RouterPromiseSyncFuncRes {
-    if (to.params.namespace) this.__queryParamNamespace.value = to.params.namespace as string
-    if (to.query.namespace) this.__queryQueryNamespace.value = to.query.namespace as string
-
+    if (to.params.namespace) {
+      this.__queryParamNamespace.value = to.params.namespace as string
+    } else {
+      this.__paramNamespace.value = ''
+      this.__queryParamNamespace.value = ''
+      this.__nowParamNamespaceIsValid = true
+      this.__nowParamNamespaceIsValidRef.value = true
+    }
+    if (to.query.namespace) {
+      this.__queryQueryNamespace.value = to.query.namespace as string
+    } else {
+      this.__queryNamespace.value = ''
+      this.__queryQueryNamespace.value = ''
+      this.__nowQueryNamespaceIsValid = true
+      this.__nowQueryNamespaceIsValidRef.value = true
+    }
     this.__paramNamespaceCheckPromise = new DefPromiseHelper()
     this.__queryNamespaceCheckPromise = new DefPromiseHelper()
   }
@@ -158,7 +170,7 @@ export class Namespace extends MadisonAddon {
   }
 
   async checkNamespaceValid(namespace: string): Promise<boolean> {
-    if (!namespace) return false
+    if (namespace === '') return false
     if (this.__checkedNamespace.has(namespace)) {
       return this.__checkedNamespace.get(namespace) as boolean
     }

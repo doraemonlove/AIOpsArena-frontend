@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const madison = Madison.getInstance()
-const namespace = madison.namespace.paramNamespace
+const namespace = madison.namespace.queryNamespace
 const names = ['metricsmachinenode', 'metricsmachinepod']
 const dict: Record<string, string> = {
   metricsmachinenode: 'Node',
@@ -20,7 +20,7 @@ const dict: Record<string, string> = {
         :key="name"
       >
         <router-link
-          :to="{ name, params: { namespace: namespace || 'unknown' }}"
+          :to="{ name, query: { namespace: namespace || 'unknown' }}"
           class="w-auto box-border border-b-2 border-transparent hover:text-moonlight-500 transition-all"
           :class="{ '!border-moonlight-500': route.matched.find((item) => item.name === name) !== undefined }"
         >

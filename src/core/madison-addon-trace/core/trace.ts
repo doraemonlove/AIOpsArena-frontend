@@ -19,7 +19,14 @@ export class TraceDetail {
   readonly statusCode: number = 0
 
   constructor(data: TraceRes, parentSpan: string) {
-    const res = this.init(data, parentSpan)
+    const init = (data: TraceRes, parentSpan: string): undefined | TraceItem => {
+      const res = data.find((item) => item.parent_span === parentSpan)
+      const index = data.findIndex((item) => item.parent_span === parentSpan)
+      if (res === undefined) return undefined
+      data.splice(index, 1)
+      return res
+    }
+    const res = init(data, parentSpan)
     this.parentSpan = parentSpan
     if (res === undefined) {
       this.useful = false
@@ -38,13 +45,5 @@ export class TraceDetail {
       if (!td.useful) break
       this.children.push(td)
     }
-  }
-
-  private init(data: TraceRes, parentSpan: string): undefined | TraceItem {
-    const res = data.find((item) => item.parent_span === parentSpan)
-    const index = data.findIndex((item) => item.parent_span === parentSpan)
-    if (res === undefined) return undefined
-    data.splice(index, 1)
-    return res
   }
 }

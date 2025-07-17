@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Madison } from '@/core/madison'
-import type { DatasetIns } from '@/core/madison-addon-dataset-manager/core/dataset'
+import type { DatasetIns } from '@/core/madison-addon-dataset/core/dataset'
 
 const madison = Madison.getInstance()
 const dataset = madison.dataset

@@ -19,3 +19,11 @@ export enum MadisonDataLoaderStatus {
   SUCCESS = 'SUCCESS',
   DISTORY = 'DISTORY'
 }
+
+export enum MadisonDataQueryTaskStatus {
+  READY = 'READY',
+  LOADING = 'LOADING',
+  ERROR = 'ERROR',
+  SUCCESS = 'SUCCESS',
+  DISTORY = 'DISTORY'
+}

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { MetricDataDetail } from '@/core/madison-addon-metric/core/machine/data'
+import { MetriMachineDataDetail } from '@/core/madison-addon-metric/core/machine/data'
 import { onMounted, ref, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   data: {
-    type: MetricDataDetail,
+    type: MetriMachineDataDetail,
     required: true
   }
 })
@@ -26,6 +26,6 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="chart"
-    class="w-full h-[700px] overflow-hidden"
+    class="w-full h-full overflow-hidden"
   />
 </template>

@@ -10,7 +10,7 @@ const to = computed(() => {
   if (namespace.value === '') {
     return { name: 'data' }
   } else {
-    return { name: 'traces', params: { namespace: namespace.value }}
+    return { name: 'traces', query: { namespace: namespace.value }}
   }
 })
 

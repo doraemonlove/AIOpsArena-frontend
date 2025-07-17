@@ -15,10 +15,10 @@ const hasPrevStep = manager.hasPrevStep
 const hasNextStep = manager.hasNextStep
 const rangeStr = manager.rangeStr
 const rangeIndex = manager.rangeIndex
-const disable = manager.searching
+const disable = manager.isCreatingQueryTask
 
 function change() {
-  manager.query()
+  manager.createQueryTask()
 }
 function disabledDate(date: Date) {
   return date.getTime() > Date.now()
@@ -72,7 +72,7 @@ function disabledDate(date: Date) {
       :size="size"
       :disabled="disable"
       :loading="disable"
-      @click="manager.query()"
+      @click="manager.createQueryTask()"
     >
       Search
     </el-button>

@@ -2,12 +2,13 @@
 import MetricMachineSidebar from '@/components/MetricMachineSidebar/index.vue'
 import { Madison } from '@/core/madison'
 import chart from './chart.vue'
+import loading from './loading.vue'
 
 const madison = Madison.getInstance()
 const machine = madison.metric.machine
 const namesapce = machine.namespace
-const startTime = machine.startTime
-const endTime = machine.endTime
+const startTime = machine.displayStartTime
+const endTime = machine.displayEndTime
 const smn = machine.selectedMetricName
 const data = machine.data
 </script>
@@ -23,11 +24,17 @@ const data = machine.data
       </div>
     </div> -->
     <div class="flex flex-col gap-4 p-4 justify-center">
-      <chart
+      <div
         v-for="d in data"
         :key="d.id"
-        :data="d"
-      />
+        class="w-full h-[700px] overflow-hidden"
+      >
+        <chart
+          v-if="d.data !== null"
+          :data="d.data"
+        />
+        <loading v-else />
+      </div>
       <div
         v-if="data.length === 0"
         class="flex justify-center items-center w-full h-[500px] flex-shrink-0 text-3xl"

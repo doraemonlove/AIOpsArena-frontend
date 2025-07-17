@@ -9,7 +9,7 @@ const props = defineProps({
   }
 })
 const node = props.node
-const namespace = Madison.getInstance().namespace.paramNamespace
+const namespace = Madison.getInstance().namespace.queryNamespace
 </script>
 
 <template>

@@ -2,7 +2,7 @@
 import { Madison } from '@/core/madison'
 
 const service = Madison.getInstance().metrics.machine.pod.selectedService
-const namespace = Madison.getInstance().namespace.paramNamespace
+const namespace = Madison.getInstance().namespace.queryNamespace
 
 </script>
 

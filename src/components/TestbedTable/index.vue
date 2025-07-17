@@ -182,7 +182,7 @@ async function deleteTestbed(index: number) {
               size="small"
               type="danger"
               plain
-              :disabled="(scope.row.deleteStatus ? scope.row.deleteStatus : scope.row.installStatus) !== 'SUCCESS'"
+              :disabled="!['SUCCESS', 'FAILURE'].includes((scope.row.deleteStatus ? scope.row.deleteStatus : scope.row.installStatus))"
               :loading="scope.row.loadingDisplay"
               @click="deleteTestbed(scope.$index)"
             >

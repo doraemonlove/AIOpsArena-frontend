@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import item from './item.vue'
 import tmr2t from '@/components/TimeRangePicker/tmr2t.vue'
-import { Madison } from '@/core/madison'
+import { Madison, MadisonDataQueryTaskStatus } from '@/core/madison'
 import type { FullLogs } from '@/core/madison-addon-logs/core/logs'
+import { formatDate } from '@/core/madison/utils'
 import { computed, reactive, ref } from 'vue'
 import { JsonViewer } from 'vue3-json-viewer'
 
 const madison = Madison.getInstance()
 const logs = madison.logs
-const logsLoader = logs.data
+const log = logs.data
+const showLog = computed(() => log.value === null ? [] : log.value.data === null ? [] : log.value.data)
 const searchValue = ref('')
 const selectValue = ref('all')
 const options = computed<{value: string, label: string}[]>(() => {
   const set = new Set<string>()
-  logsLoader.value?.data.forEach((t) => {
+  showLog.value.forEach((t) => {
     set.add(t.podName)
   })
   const list = []
@@ -34,11 +36,11 @@ const options = computed<{value: string, label: string}[]>(() => {
 })
 const searchedLogsList = computed(() => {
   if (searchValue.value !== '') {
-    return logsList.value.filter((t) => {
+    return showLog.value.filter((t) => {
       return t.message.includes(searchValue.value) || t.logId.includes(searchValue.value) || t.podName.includes(searchValue.value)
     })
   } else {
-    return logsList.value
+    return showLog.value
   }
 })
 
@@ -68,15 +70,18 @@ function showDetail(data: FullLogs) {
   drawer.value = true
   jsonData = reactive(data.data)
 }
+
+const date = computed(() => {
+  if (logs.timestamp.value instanceof Date) return formatDate(logs.timestamp.value)
+  return ''
+})
 </script>
 
 <template>
   <div>
-    <div class="flex gap-4 sticky top-0 p-4 platform-logs-list backdrop-blur z-10">
-      <tmr2t
-        :manager="logs"
-        :query="true"
-      />
+    <div class="flex gap-2 sticky top-0 p-4 platform-logs-list backdrop-blur z-10 justify-between max-w-[1200px] mx-auto items-center">
+      <span>Timestamp: {{ date }}</span>
+      <span>Range: {{ logs.rangeStr }}</span>
       <div>
         <el-input
           v-model="searchValue"
@@ -102,15 +107,30 @@ function showDetail(data: FullLogs) {
       <div class="flex items-center gap-2 text-sm">
         <span>{{ useLogsList.length }}</span>
         <span>/</span>
-        <span>{{ logsList.length }}</span>
+        <span>{{ showLog.length }}</span>
       </div>
     </div>
     <div class="flex flex-col gap-4 p-4">
       <div
-        v-show="logsList.length === 0"
+        v-show="showLog.length === 0"
         class="w-full flex justify-center items-center h-96"
       >
-        <span>No data</span>
+        <span
+          v-show="log?.status === MadisonDataQueryTaskStatus.LOADING || log?.status === MadisonDataQueryTaskStatus.READY"
+          class="text-moonlight-500 text-9xl"
+        >
+          <el-icon class="is-loading">
+            <Loading />
+          </el-icon>
+        </span>
+        <span
+          v-show="log?.status === MadisonDataQueryTaskStatus.SUCCESS"
+          class="text-moonlight-500 text-2xl"
+        >No data</span>
+        <span
+          v-show="log?.status === MadisonDataQueryTaskStatus.ERROR"
+          class="text-red-500 text-2xl"
+        >ERROR</span>
       </div>
       <item
         v-for="l in showLogsList"
@@ -121,7 +141,7 @@ function showDetail(data: FullLogs) {
       />
     </div>
     <div
-      v-show="logsList.length > 0"
+      v-show="showLog.length > 0"
       class="flex justify-end sticky bottom-0 p-4 platform-logs-list backdrop-blur z-10"
     >
       <el-pagination
@@ -136,7 +156,6 @@ function showDetail(data: FullLogs) {
       v-model="drawer"
       title="Detail"
       size="500"
-      ，
     >
       <JsonViewer
         :value="jsonData"

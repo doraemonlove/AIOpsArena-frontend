@@ -32,8 +32,8 @@ function responseError() {
 }
 
 const config = {
-  // baseURL: import.meta.env.BLOG_BASE_API, // url = base url + request url
-  baseURL: 'http://223.193.36.216:8002/',
+  baseURL: import.meta.env.VITE_BASE_URL, // url = base url + request url
+  // baseURL: 'http://223.193.36.216:8002/',
   headers: {
     'Cache-Control': import.meta.env.BLOG_NO_CACHE === 'true' ? 'no-cache' : null
   }
@@ -59,4 +59,49 @@ service_.interceptors.response.use(response(), responseError())
 
 export function service<T>(config: AxiosRequestConfig) {
   return service_<MadisonApiRes<T>>(config)
+}
+
+export function createLoopQuery<P extends {}, V>(
+  params: P,
+  loopQueryFunc: (params: P) => Promise<AxiosResponse<MadisonApiRes<V>, any>>,
+  loopFinCheck: (data: MadisonApiRes<V>) => boolean,
+  loopFinCallback: (data: MadisonApiRes<V>) => void,
+  loopErrorCallback: () => void,
+  loopStopCallback: () => void,
+  interval: number = 2000
+): {
+  stop: () => void
+} {
+  let stoped = false
+  let timer: NodeJS.Timeout | null = null
+  /**
+   * 轮询停止方法
+   */
+  const stop = () => {
+    stoped = true
+    if (timer !== null) clearTimeout(timer)
+    loopStopCallback()
+  }
+
+  const func = async () => {
+    try {
+      const res = await loopQueryFunc(params)
+      if (stoped) return
+      const data = res.data
+      const check = loopFinCheck(data)
+      if (check) {
+        loopFinCallback(data)
+      } else {
+        timer = setTimeout(func, interval)
+      }
+    } catch (_) {
+      loopErrorCallback()
+    }
+  }
+
+  func()
+
+  return {
+    stop
+  }
 }

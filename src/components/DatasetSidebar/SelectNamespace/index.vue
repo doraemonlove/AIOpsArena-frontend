@@ -13,8 +13,8 @@ const inputNamespace = ref('')
   <div class="flex flex-col gap-2">
     <div>
       <span class="text-2xl hover:text-moonlight-500 hover:underline">
-        <router-link :to="{ name: 'data'}">
-          Select Namespace
+        <router-link :to="{ name: 'data' }">
+          Select Data
         </router-link>
       </span>
     </div>
@@ -22,7 +22,7 @@ const inputNamespace = ref('')
       <span class=" text-gray-400">Now Namespace:</span>
     </div>
     <div>
-      <div class=" text-center text-moonlight-500">{{ namespace.paramNamespace }}</div>
+      <div class=" text-center text-moonlight-500">{{ namespace.queryNamespace }}</div>
     </div>
     <div>
       <span class=" text-gray-400">Input Namespace</span>
@@ -38,10 +38,11 @@ const inputNamespace = ref('')
       <el-button
         size="small"
         :disabled="inputNamespace === ''"
+        @click="inputNamespace = ''"
       >
         <router-link
           :class="{'pointer-events-none': inputNamespace === ''}"
-          :to="{ name: route.name, params: { namespace: inputNamespace || 'unknown' }}"
+          :to="{ name: route.name, query: { namespace: inputNamespace || 'unknown' }}"
         >
           Goto
         </router-link>
@@ -56,7 +57,7 @@ const inputNamespace = ref('')
     >
       <router-link
         class="hover:text-moonlight-500 hover:underline"
-        :to="{ name: route.name, params: { ...route.params, namespace: n || 'unknown' }, query: route.query }"
+        :to="{ name: route.name, query: { ...route.query, namespace: n || 'unknown' } }"
       >
         {{ n }}
       </router-link>

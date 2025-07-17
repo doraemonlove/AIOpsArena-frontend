@@ -23,7 +23,7 @@ export class Pod extends MadisonAddon {
   get selectedService(): ComputedRef<Topology> | ComputedRef<undefined> {
     return computed(() => {
       if (this.__selectedService.value === '') return undefined
-      const namespace = this.__madison.namespace.paramNamespace.value
+      const namespace = this.__madison.namespace.queryNamespace.value
       const service = this.__selectedService.value
       const ts = this.__topologyMap.get(namespace)
       if (ts === undefined) return undefined
@@ -71,7 +71,7 @@ export class Pod extends MadisonAddon {
     console.log('waiting for login')
     await this.__madison.login.waitingForLogin
     if (this.__madison.login.state !== LoginState.LOGGED) return
-    const namespace = this.__madison.namespace.queryParamNamespace.value
+    const namespace = this.__madison.namespace.queryQueryNamespace.value
     if (this.__searchedNamespace.has(namespace)) return
     const res = await getPodTopology({ namespace })
     const data = res.data
@@ -133,7 +133,7 @@ export class Pod extends MadisonAddon {
       }
       this.renderChart(chartElement)
     })
-    this.__watchHandleNS = watch(this.__madison.namespace.paramNamespace, (newVal) => {
+    this.__watchHandleNS = watch(this.__madison.namespace.queryNamespace, (newVal) => {
       //
       // 路由跳转说明图标数据已经改变
       //
@@ -167,7 +167,7 @@ export class Pod extends MadisonAddon {
   }
 
   private renderChart(element: HTMLDivElement): boolean {
-    const namespace = this.__madison.namespace.paramNamespace.value
+    const namespace = this.__madison.namespace.queryNamespace.value
     const theme = this.__madison.theme.theme.value
     const data = this.__topologyEchartData.get(namespace)
     if (data === undefined) {

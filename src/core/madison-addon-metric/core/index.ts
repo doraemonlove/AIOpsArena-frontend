@@ -41,18 +41,17 @@ export class Metric extends MadisonAddon {
     const can = await this.defNoNSCheck(
       to,
       from,
-      (to) =>
-        to.matched.find((item) => ['displaymetricmachine'].includes(item.name as string)) !==
-        undefined
+      (to) => this.includes(to, 'metric')
     )
     if (!can) return
     const namespace = (to.query.namespace as string) || ''
-    const isValid = await this.__madison.namespace.checkNamespaceValid(namespace)
-    if (!isValid) {
+    await this.__madison.namespace.waitingForQueryNamespaceCheck
+    const nv = this.__madison.namespace.queryNamespaceIsValid
+    if (!nv) {
       message('Wrong namespace')
       this.__metricNameGotPromise.resolve()
       return {
-        name: 'metric',
+        name: 'data',
         query: {}
       }
     }

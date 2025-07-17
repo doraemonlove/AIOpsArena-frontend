@@ -4,7 +4,9 @@ import item from './item.vue'
 import { ref } from 'vue'
 import type { Microservice } from '@/core/madison-addon-testbed'
 import { message } from '@/utils/utils'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const madison = Madison.getInstance()
 const microservice = madison.testbed.microservices
 const dialogCreateVisible = ref(false)
@@ -72,12 +74,12 @@ async function createConfirm() {
         </div>
       </template>
       <div class="flex flex-col gap-4 pl-4 pr-4">
-        <span class="text-3xl font-extrabold font-title">Testbed name</span>
+        <span class="text-3xl font-extrabold font-title">{{ t('Microservice.Dialog.TestbedName') }}</span>
         <el-input
           v-model="testbedName"
           placeholder="Please input"
         />
-        <span class="text-3xl font-extrabold font-title">Description</span>
+        <span class="text-3xl font-extrabold font-title">{{ t('Microservice.Dialog.Description') }}</span>
         <el-input
           v-model="desc"
           :rows="2"
@@ -88,7 +90,7 @@ async function createConfirm() {
           v-show="allowReplica"
           class="flex flex-col gap-4"
         >
-          <span class="text-3xl font-extrabold font-title">Services</span>
+          <span class="text-3xl font-extrabold font-title">{{ t('Microservice.Dialog.Services') }}</span>
           <div
             v-for="item in services"
             :key="item[0]"
@@ -105,12 +107,12 @@ async function createConfirm() {
       </div>
       <template #footer>
         <div class="pl-4 pr-4 flex gap-2 justify-end">
-          <el-button @click="dialogCreateVisible = false">Cancel</el-button>
+          <el-button @click="dialogCreateVisible = false">{{ t('Microservice.Dialog.Cancel') }}</el-button>
           <el-button
             type="primary"
             @click="createConfirm"
           >
-            Confirm
+            {{ t('Microservice.Dialog.Confirm') }}
           </el-button>
         </div>
       </template>

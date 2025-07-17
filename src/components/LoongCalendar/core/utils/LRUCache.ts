@@ -1,9 +1,13 @@
 export class LRUCache<K, V> extends Map {
   capacity: number
-  constructor(capacity?: number) {
+  deleteCallback: ((key: K, value: V) => void) | null
+
+  constructor(capacity?: number, deleteCallback?: (key: K, value: V) => void) {
     super()
     this.capacity = capacity || 100
+    this.deleteCallback = deleteCallback || null
   }
+
   set(key: K, value: V): this {
     if (this.has(key)) {
       this.delete(key)
@@ -22,5 +26,10 @@ export class LRUCache<K, V> extends Map {
       super.set(key, value)
       return value
     } else return undefined
+  }
+
+  delete(key: any): boolean {
+    if (this.deleteCallback && this.has(key)) this.deleteCallback(key, this.get(key) as V)
+    return super.delete(key)
   }
 }

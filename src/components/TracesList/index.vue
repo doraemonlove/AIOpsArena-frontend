@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import item from './item.vue'
 import tmr2t from '@/components/TimeRangePicker/tmr2t.vue'
-import { Madison } from '@/core/madison'
+import { Madison, MadisonDataQueryTaskStatus } from '@/core/madison'
+import { formatDate } from '@/core/madison/utils'
 import { computed, ref } from 'vue'
 
 const madison = Madison.getInstance()
-const tracesList = madison.traces.data
+const trace = madison.traces.data
 const traces = madison.traces
+const showTrace = computed(() => trace.value === null ? [] : trace.value.data === null ? [] : trace.value.data)
 
 const searchValue = ref('')
 
@@ -28,11 +30,11 @@ const options = [
 
 const searchedTracesList = computed(() => {
   if (searchValue.value !== '') {
-    return tracesList.value.filter((t) => {
+    return showTrace.value.filter((t) => {
       return t.operationName.includes(searchValue.value) || t.traceId.includes(searchValue.value)
     })
   } else {
-    return tracesList.value
+    return showTrace.value
   }
 })
 
@@ -56,16 +58,17 @@ const pageSize = ref(100)
 const showTracesList = computed(() => {
   return useTracesList.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value)
 })
-
+const date = computed(() => {
+  if (traces.timestamp.value instanceof Date) return formatDate(traces.timestamp.value)
+  return ''
+})
 </script>
 
 <template>
   <div>
-    <div class="flex gap-4 sticky top-0 p-4 platform-trace-list backdrop-blur z-10">
-      <tmr2t
-        :manager="traces"
-        :query="true"
-      />
+    <div class="flex gap-2 sticky top-0 p-4 platform-logs-list backdrop-blur z-10 justify-between max-w-[1200px] mx-auto items-center">
+      <span>Timestamp: {{ date }}</span>
+      <span>Range: {{ traces.rangeStr }}</span>
       <div>
         <el-input
           v-model="searchValue"
@@ -91,7 +94,7 @@ const showTracesList = computed(() => {
       <div class="flex items-center gap-2 text-sm">
         <span>{{ useTracesList.length }}</span>
         <span>/</span>
-        <span>{{ tracesList.length }}</span>
+        <span>{{ showTrace.length }}</span>
       </div>
       <div class="flex items-center">
         <el-button>
@@ -103,10 +106,25 @@ const showTracesList = computed(() => {
     </div>
     <div class="flex flex-col gap-4 p-4">
       <div
-        v-show="tracesList.length === 0"
+        v-show="showTrace.length === 0"
         class="w-full flex justify-center items-center h-96"
       >
-        <span>No data</span>
+        <span
+          v-show="trace?.status === MadisonDataQueryTaskStatus.LOADING || trace?.status === MadisonDataQueryTaskStatus.READY"
+          class="text-moonlight-500 text-9xl"
+        >
+          <el-icon class="is-loading">
+            <Loading />
+          </el-icon>
+        </span>
+        <span
+          v-show="trace?.status === MadisonDataQueryTaskStatus.SUCCESS"
+          class="text-moonlight-500 text-2xl"
+        >No data</span>
+        <span
+          v-show="trace?.status === MadisonDataQueryTaskStatus.ERROR"
+          class="text-red-500 text-2xl"
+        >ERROR</span>
       </div>
       <item
         v-for="t in showTracesList"
@@ -116,7 +134,7 @@ const showTracesList = computed(() => {
       />
     </div>
     <div
-      v-show="tracesList.length > 0"
+      v-show="showTrace.length > 0"
       class="flex justify-end sticky bottom-0 p-4 platform-trace-list backdrop-blur z-10"
     >
       <el-pagination

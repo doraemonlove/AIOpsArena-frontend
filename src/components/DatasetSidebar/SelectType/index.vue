@@ -13,7 +13,7 @@ const type = computed(() => {
   return 'unknown'
 })
 const types = ['logs', 'metrics', 'traces']
-const namespace = Madison.getInstance().namespace.paramNamespace
+const namespace = Madison.getInstance().namespace.queryNamespace
 
 </script>
 
@@ -21,7 +21,7 @@ const namespace = Madison.getInstance().namespace.paramNamespace
   <div class="flex flex-col gap-2">
     <div>
       <span class="text-2xl hover:text-moonlight-500 hover:underline">
-        <router-link :to="{ name: 'datatype', params: { namespace: namespace || 'unknown' }}">
+        <router-link :to="{ name: 'data' }">
           Select Type
         </router-link>
       </span>
@@ -40,7 +40,7 @@ const namespace = Madison.getInstance().namespace.paramNamespace
       :key="i"
     >
       <router-link
-        :to="{ name: t, params: route.params }"
+        :to="{ name: t, query: { namespace: route.query.namespace || 'unknown' } }"
         class="hover:text-moonlight-500 hover:underline"
       >
         {{ t[0].toLocaleUpperCase() + t.slice(1) }}

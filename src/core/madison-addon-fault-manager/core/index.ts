@@ -106,8 +106,20 @@ export class FaultManager extends MadisonAddon {
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): Promise<RouteLocationRaw | void> {
-    const can = await this.defQNSCheck(to, from, 'faultinjection')
+    const can = await this.defNoNSCheck(to, from, 'faultinjection')
     if (!can) return
+    /** 检查namespace */
+    await this.__madison.namespace.waitingForQueryNamespaceCheck
+    const nv = this.__madison.namespace.queryNamespaceIsValid
+    if (!nv) {
+      /** namespace错误，查看有没有可用的namespace */
+      await this.__madison.namespace.waitingForNamespaceGet
+      if (this.__madison.namespace.namespaces.value.length === 0) {
+        /** 没有namespace可用 */
+        return
+      }
+      return { name: 'faultinjection', query: { ...to.query, namespace: this.__madison.namespace.namespaces.value[0] }}
+    }
     const namespace = this.__madison.namespace.queryQueryNamespace.value
     if (!this.__faultsData.has(namespace)) this.__faultsData.set(namespace, new Map())
     const promises = [this.loadPodList(namespace)]

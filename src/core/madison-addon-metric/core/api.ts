@@ -28,15 +28,15 @@ export function getPodlist(options: PodListOptions) {
 
 export function getNodeList(options: NodeListOptions) {
   return service<NodeListRes>({
-    url: '/nodelist',
+    url: '/monitor/nodelist',
     method: 'get',
     params: options
   })
 }
 
 export function getMachinemetric(options: MachineMetricOptions) {
-  return service<MachineMetricRes>({
-    url: '/machinemetric',
+  return service<{ taskId: string }>({
+    url: '/monitor/machinemetric',
     method: 'get',
     params: {
       namespace: options.namespace,
@@ -46,6 +46,16 @@ export function getMachinemetric(options: MachineMetricOptions) {
       metric_type: options.metricType,
       pod: options.metricType === 'pod' ? options.pod : undefined,
       node: options.metricType === 'node' ? options.node : undefined
+    }
+  })
+}
+
+export function getMachinemetricData(params: { taskId: string }) {
+  return service<{ status: string; result: MachineMetricRes }>({
+    url: '/monitor/taskresult',
+    method: 'get',
+    params: {
+      task_id: params.taskId
     }
   })
 }

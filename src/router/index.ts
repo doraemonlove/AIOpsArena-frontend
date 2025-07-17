@@ -58,9 +58,8 @@ const router = createRouter({
     },
     {
       path: '/data',
-      name: 'database',
+      name: 'data',
       component: () => import('../views/Data/index.vue'),
-      redirect: { name: 'logs' },
       children: [
         {
           path: 'traces',
@@ -113,6 +112,38 @@ const router = createRouter({
           ]
         },
         {
+          path: 'trace',
+          name: 'tracesearch',
+          component: () => import('../views/Data/Trace/index.vue')
+        },
+        {
+          path: 'trace/:id',
+          name: 'trace',
+          component: () => import('../views/Data/Trace/index.vue')
+        },
+        {
+          path: 'metric',
+          name: 'metric',
+          component: () => import('../views/Data/Metric/index.vue'),
+          children: [
+            {
+              path: 'machine',
+              name: 'metricmachine',
+              component: () => import('../views/Data/Metric/Machine/index.vue')
+            },
+            {
+              path: 'service',
+              name: 'metricservice',
+              component: () => import('../views/AboutView.vue')
+            },
+            {
+              path: 'business',
+              name: 'metricbusiness',
+              component: () => import('../views/AboutView.vue')
+            }
+          ]
+        },
+        {
           path: ':pathMatch(.*)*',
           name: 'dataNotFound',
           redirect: '/data'
@@ -123,50 +154,6 @@ const router = createRouter({
       path: '/dataset',
       name: 'dataset',
       component: () => import('../views/Dataset/index.vue')
-    },
-    {
-      path: '/display',
-      name: 'displaybase',
-      component: () => import('../views/DataDisplay/index.vue'),
-      children: [
-        {
-          path: '',
-          name: 'display',
-          component: () => import('../views/AboutView.vue')
-        },
-        {
-          path: 'trace',
-          name: 'tracesearch',
-          component: () => import('../views/AboutView.vue')
-        },
-        {
-          path: 'trace/:id',
-          name: 'trace',
-          component: () => import('../views/DataDisplay/Trace/index.vue')
-        },
-        {
-          path: 'metric',
-          name: 'metric',
-          component: () => import('../views/DataDisplay/Metric/index.vue'),
-          children: [
-            {
-              path: 'machine',
-              name: 'displaymetricmachine',
-              component: () => import('../views/DataDisplay/Metric/Machine/index.vue')
-            },
-            {
-              path: 'service',
-              name: 'displaymetricservice',
-              component: () => import('../views/AboutView.vue')
-            },
-            {
-              path: 'business',
-              name: 'displaymetricbusiness',
-              component: () => import('../views/AboutView.vue')
-            }
-          ]
-        }
-      ]
     },
     {
       path: '/algorithm',

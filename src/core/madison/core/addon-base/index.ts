@@ -1,6 +1,6 @@
-import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
+import type { RouteLocationNormalized, RouteLocationNormalizedLoadedGeneric, RouteLocationRaw } from 'vue-router'
 import type { Madison } from '..'
-import type { MadisonApiMsg, RouterPromiseSyncFuncRes } from '../../types'
+import { MadisonDataQueryTaskStatus, type MadisonApiMsg, type RouterPromiseSyncFuncRes } from '../../types'
 import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputedRef } from 'vue'
 import { debounce, isNumber, message, parseTimeToSeconds } from '../../utils'
 
@@ -126,6 +126,40 @@ export abstract class MadisonAddon {
     if (!this.__madison.login.logged.value) return false
     return true
   }
+
+  /**
+   * 去往的页面的name是否是输入的name
+   * @param to RouteLocationNormalized
+   * @param name string
+   * @returns boolean
+   */
+  is(to: RouteLocationNormalized, name: string): boolean {
+    return to.name === name
+  }
+
+  /**
+   * 去往的页面的路由是否包含输入的name
+   * @param to RouteLocationNormalized
+   * @param name string
+   * @returns boolean
+   */
+  includes(to: RouteLocationNormalized, name: string): boolean {
+    return to.matched.find(item => item.name === name) !== undefined
+  }
+
+  protected findSecondLastDashIndex(str: string): number {
+    let lastDashIndex = -1
+    let secondLastDashIndex = -1
+
+    for (let i = 0; i < str.length; i++) {
+      if (str[i] === '-') {
+        secondLastDashIndex = lastDashIndex
+        lastDashIndex = i
+      }
+    }
+
+    return secondLastDashIndex
+  }
 }
 
 type DefCheckFunc = (to: RouteLocationNormalized) => boolean
@@ -142,129 +176,103 @@ type DefCheckFunc = (to: RouteLocationNormalized) => boolean
  */
 export abstract class MadisonAddonDataBase<DATA> extends MadisonAddon {
   readonly MAX_INTERVAL = Date.now()
+  /** for all, 展示的查询任务的起始时刻 */
+  protected __displayStartTime: Ref<number> = ref(0)
+  /** for all, 展示的查询任务的结束时刻 */
+  protected __displayEndTime: Ref<number> = ref(0)
   /** for all */
-  protected __startTime: Ref<number> = ref(0)
-  /** for all */
-  protected __endTime: Ref<number> = ref(0)
-  /** for all */
-  protected __searching: Ref<boolean> = ref(false)
+  protected __isCreatingQueryTask: Ref<boolean> = ref(false)
+  /** for all, 展示的查询任务的id */
+  protected abstract __displayId: ComputedRef<string>
   /** for all, for api search */
-  protected abstract __apiUseStartTime: Ref<number> | WritableComputedRef<number, number>
+  protected abstract __apiStartTime: Ref<number> | WritableComputedRef<number, number>
   /** for all, for api search */
-  protected abstract __apiUseEndTime: Ref<number> | WritableComputedRef<number, number>
-
-  get searching(): ComputedRef<boolean> {
-    return computed(() => this.__searching.value)
+  protected abstract __apiEndTime: Ref<number> | WritableComputedRef<number, number>
+  /** Map<taskId, func> */
+  protected __loopStopFuncs: Map<string, () => void> = new Map()
+  /** 是否正在创建查询任务 */
+  get isCreatingQueryTask(): ComputedRef<boolean> {
+    return computed(() => this.__isCreatingQueryTask.value)
   }
-
-  abstract get data(): ComputedRef<DATA[]>
+  /** 展示数据的起始时刻 */
+  get displayStartTime(): ComputedRef<Date> {
+    return computed(() => new Date(this.__displayStartTime.value * 1000))
+  }
+  /** 展示数据的结束时刻 */
+  get displayEndTime(): ComputedRef<Date> {
+    return computed(() => new Date(this.__displayEndTime.value * 1000))
+  }
+  /** 展示的数据 */
+  abstract get data(): ComputedRef<MadisonAddonDataQueryTask<DATA> | null>
+  /** 查询任务列表 */
+  abstract get queryTaskList(): ComputedRef<MadisonAddonDataQueryTask<DATA>[]>
 
   abstract precheck(to: RouteLocationNormalized, from: RouteLocationNormalized): RouterPromiseSyncFuncRes
   abstract check(to: RouteLocationNormalized, from: RouteLocationNormalized): Promise<RouteLocationRaw | void>
   abstract postcheck(to: RouteLocationNormalized, from: RouteLocationNormalized): RouterPromiseSyncFuncRes
 
   logoutCallback(): void {
-    this.__searching.value = false
+    this.__loopStopFuncs.forEach((func) => func())
+    this.__loopStopFuncs.clear()
+    this.__isCreatingQueryTask.value = false
+    this.__displayStartTime.value = 0
+    this.__displayEndTime.value = 0
   }
 
   /**
-   * 修改完数据后调用此函数进行**路由跳转**查询
+   * 修改完数据后调用此函数进行**路由跳转**创建查询任务
    *
    * 具体查询数据函数应该挂载到routerPromise.check中
    */
-  abstract query(): void
+  abstract createQueryTask(): void
+
+  /**
+   * 移除查询任务
+   * @param taskId 查询任务id
+   */
+  abstract removeTask(taskId: string): boolean
+
+  /**
+   * 查询是否是默认状态
+   */
+  abstract queryIsDef(): boolean
+
+  /**
+   * 查询参数中是否包含namespace
+   * @param to RouteLocationNormalized
+   * @returns boolean
+   */
+  hasNamespace(to: RouteLocationNormalized): boolean {
+    return to.query.namespace !== undefined && to.query.namespace !== ''
+  }
 }
 
 export abstract class MadisonAddonDataS2E<DATA> extends MadisonAddonDataBase<DATA> {
-  protected __apiUseStartTime: Ref<number, number> | WritableComputedRef<number, number> = ref(0)
-  protected __apiUseEndTime: Ref<number, number> | WritableComputedRef<number, number> = ref(0)
-
-  protected __queryStartTime: WritableComputedRef<number, number> = computed({
-    get: () => {
-      return this.__apiUseStartTime.value
-    },
-    set: (val) => {
-      this.__apiUseStartTime.value = val
-    }
-  })
-
-  protected __queryEndTime: WritableComputedRef<number, number> = computed({
-    get: () => {
-      return this.__apiUseEndTime.value
-    },
-    set: (val) => {
-      this.__apiUseEndTime.value = val
-    }
-  })
-
-  get startTime(): WritableComputedRef<number, number> {
-    return computed({
-      get: () => {
-        return this.__startTime.value
-      },
-      set: (val) => {
-        this.__queryStartTime.value = val
-      }
-    })
-  }
-
-  get endTime(): WritableComputedRef<number, number> {
-    return computed({
-      get: () => {
-        return this.__endTime.value
-      },
-      set: (val) => {
-        this.__queryEndTime.value = val
-      }
-    })
-  }
-
-  get startTimeDate(): WritableComputedRef<Date, Date> {
-    return computed({
-      get: () => {
-        return new Date(this.startTime.value * 1000)
-      },
-      set: (value: Date) => {
-        this.startTime.value = Math.floor(value.getTime() / 1000)
-      }
-    })
-  }
-
-  get endTimeDate(): WritableComputedRef<Date, Date> {
-    return computed({
-      get: () => {
-        return new Date(this.endTime.value * 1000)
-      },
-      set: (value: Date) => {
-        this.endTime.value = Math.floor(value.getTime() / 1000)
-      }
-    })
-  }
+  protected __apiStartTime: Ref<number, number> | WritableComputedRef<number, number> = ref(0)
+  protected __apiEndTime: Ref<number, number> | WritableComputedRef<number, number> = ref(0)
 
   get timeRange(): WritableComputedRef<string | [Date, Date], [Date, Date]> {
     return computed({
       get: (): string | [Date, Date] => {
-        if (this.__queryStartTime.value === 0 || this.__queryEndTime.value === 0) {
+        if (this.__displayStartTime.value === 0 || this.__displayEndTime.value === 0) {
           return ''
         }
         return [
-          this.startTimeDate.value,
-          this.endTimeDate.value
+          this.displayStartTime.value,
+          this.displayEndTime.value
         ]
       },
       set: (value: [Date, Date]) => {
-        this.startTimeDate.value = value[0]
-        this.endTimeDate.value = value[1]
+        this.__apiStartTime.value = Math.floor(value[0].getTime() / 1000)
+        this.__apiEndTime.value = Math.floor(value[1].getTime() / 1000)
       }
     })
   }
 
   logoutCallback(): void {
     super.logoutCallback()
-    this.__apiUseStartTime.value = 0
-    this.__apiUseEndTime.value = 0
-    this.__startTime.value = 0
-    this.__endTime.value = 0
+    this.__apiStartTime.value = 0
+    this.__apiEndTime.value = 0
   }
 
   /**
@@ -274,26 +282,34 @@ export abstract class MadisonAddonDataS2E<DATA> extends MadisonAddonDataBase<DAT
   protected checkSTANDET(to: RouteLocationNormalized): true | RouterPromiseSyncFuncRes {
     const startTimeStr = to.query.startTime
     const endTimeStr = to.query.endTime
-    /** first in */
-    if (!startTimeStr && !endTimeStr && this.__startTime.value === 0 && this.__endTime.value === 0) return true
+    /** 没有参数的进入 */
+    if (!startTimeStr && !endTimeStr) {
+      this.__displayStartTime.value = 0
+      this.__displayEndTime.value = 0
+      return true
+    }
     if (startTimeStr && endTimeStr && isNumber(startTimeStr as string) && isNumber(endTimeStr as string)) {
       const startTime = parseInt(startTimeStr as string)
       const endTime = parseInt(endTimeStr as string)
       const range = endTime - startTime
       if (startTime > Date.now() / 1000 || startTime <= 0) {
-        return ['redirect', { name: to.name, query: { ...to.query, startTime: Math.floor(Date.now() / 1000) - 1 }, params: to.params }]
+        return ['redirect', { name: to.name, query: { ...to.query, startTime: null, endTime: null }, params: to.params }]
       }
       if (endTime > Date.now() / 1000 || endTime <= 0) {
-        return ['redirect', { name: to.name, query: { ...to.query, endTime: Math.floor(Date.now() / 1000) }, params: to.params }]
+        return ['redirect', { name: to.name, query: { ...to.query, startTime: null, endTime: null }, params: to.params }]
       }
       if (range > this.MAX_INTERVAL || range < 0) {
-        return ['redirect', { name: to.name, query: { ...to.query, startTime: Math.floor(Date.now() / 1000) - 1, endTime: Math.floor(Date.now() / 1000) }, params: to.params }]
+        return ['redirect', { name: to.name, query: { ...to.query, startTime: null, endTime: null }, params: to.params }]
       }
-      this.__queryStartTime.value = startTime
-      this.__queryEndTime.value = endTime
+      this.__apiStartTime.value = startTime
+      this.__apiEndTime.value = endTime
       return true
     }
-    return ['redirect', { name: to.name, query: { ...to.query, startTime: this.__startTime.value, endTime: this.__endTime.value }, params: to.params }]
+    return ['redirect', { name: to.name, query: { ...to.query, startTime: null, endTime: null }, params: to.params }]
+  }
+
+  queryIsDef(): boolean {
+    return this.__apiStartTime.value === 0 || this.__apiEndTime.value === 0
   }
 }
 
@@ -319,7 +335,7 @@ export abstract class MadisonAddonDataTMR2T<DATA> extends MadisonAddonDataBase<D
   protected __timestamp: Ref<number> = ref(0)
   protected __inputRangeStr: Ref<string> = ref('')
 
-  protected __apiUseStartTime: Ref<number, number> | WritableComputedRef<number, number> = computed({
+  protected __apiStartTime: Ref<number, number> | WritableComputedRef<number, number> = computed({
     get: () => {
       return this.__timestamp.value - parseTimeToSeconds(this.rangeStr.value)
     },
@@ -328,7 +344,7 @@ export abstract class MadisonAddonDataTMR2T<DATA> extends MadisonAddonDataBase<D
     }
   })
 
-  protected __apiUseEndTime: Ref<number, number> | WritableComputedRef<number, number> = computed({
+  protected __apiEndTime: Ref<number, number> | WritableComputedRef<number, number> = computed({
     get: () => {
       return this.__timestamp.value
     },
@@ -422,17 +438,24 @@ export abstract class MadisonAddonDataTMR2T<DATA> extends MadisonAddonDataBase<D
   protected checkTSANDRI(to: RouteLocationNormalized): true | RouterPromiseSyncFuncRes {
     const timestampStr = to.query.timestamp
     const rangeStr = to.query.range
-    /** first in */
-    if (!timestampStr && !rangeStr && this.__timestamp.value === 0) return true
+    /** 没有参数的进入 */
+    if (!timestampStr && !rangeStr) {
+      this.__timestamp.value = 0
+      this.__selectedRangeIndex.value = 0
+      this.__inputRangeStr.value = ''
+      this.__displayStartTime.value = 0
+      this.__displayEndTime.value = 0
+      return true
+    }
     if (timestampStr && rangeStr && isNumber([timestampStr as string])) {
       const timestamp = parseInt(timestampStr as string)
       const range = parseTimeToSeconds(rangeStr as string)
       if (timestamp > Date.now() / 1000 || timestamp <= 0) {
-        return ['redirect', { name: to.name, query: { ...to.query, timestamp: Math.floor(Date.now() / 1000) }, params: to.params }]
+        return ['redirect', { name: to.name, query: { ...to.query, timestamp: undefined, range: undefined }, params: to.params }]
       }
       if (range < 0 || timestamp - range < 0) {
         this.__inputRangeStr.value = ''
-        return ['redirect', { name: to.name, query: { ...to.query, timestamp: Math.floor(Date.now() / 1000), range: this.stepTimeList[this.__selectedRangeIndex.value][1] }, params: to.params }]
+        return ['redirect', { name: to.name, query: { ...to.query, timestamp: undefined, range: undefined }, params: to.params }]
       }
       this.__timestamp.value = timestamp
       const index = this.stepTimeList.findIndex((item) => item[1] === rangeStr)
@@ -442,9 +465,32 @@ export abstract class MadisonAddonDataTMR2T<DATA> extends MadisonAddonDataBase<D
       } else {
         this.rangeStr.value = rangeStr as string
       }
-      if (this.__apiUseEndTime.value - this.__apiUseStartTime.value > this.MAX_INTERVAL) return ['redirect', { name: to.name, query: { ...to.query, timestamp: Math.floor(Date.now() / 1000), range: this.stepTimeList[0][1] }, params: to.params }]
+      if (this.__apiEndTime.value - this.__apiStartTime.value > this.MAX_INTERVAL) return ['redirect', { name: to.name, query: { ...to.query, timestamp: undefined, range: undefined }, params: to.params }]
       return true
     }
-    return ['redirect', { name: to.name, query: { ...to.query, timestamp: this.__timestamp.value, range: this.stepTimeList[this.__selectedRangeIndex.value][1] }, params: to.params }]
+    return ['redirect', { name: to.name, query: { ...to.query, timestamp: undefined, range: undefined }, params: to.params }]
+  }
+
+  queryIsDef(): boolean {
+    return this.__apiStartTime.value <= 0 || this.__apiEndTime.value === 0
+  }
+}
+
+export class MadisonAddonDataQueryTask<DATA> {
+  readonly id: string
+  readonly showMsg: string
+  readonly path: RouteLocationRaw
+  readonly timestamp: number
+  readonly check: (route: RouteLocationNormalizedLoadedGeneric) => boolean
+  status: MadisonDataQueryTaskStatus = MadisonDataQueryTaskStatus.READY
+  quering: boolean = true
+  data: DATA | null = null
+
+  constructor(id: string, path: RouteLocationRaw, showMsg: string, checkFunc: (route: RouteLocationNormalizedLoadedGeneric) => boolean) {
+    this.id = id
+    this.path = path
+    this.showMsg = showMsg
+    this.timestamp = Date.now()
+    this.check = checkFunc
   }
 }

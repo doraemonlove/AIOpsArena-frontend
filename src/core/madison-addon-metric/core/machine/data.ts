@@ -1,129 +1,30 @@
-import { watch, type WatchHandle } from 'vue'
-import type { MachineMetricRes } from '../../types'
 import * as echarts from 'echarts'
-import type { Madison } from '@/core/madison/core'
+import { reactive, watch, type Reactive, type Ref, type WatchHandle } from 'vue'
+import type { MachineMetricRes } from '../../types'
+import type { MadisonTheme } from '@/core/madison-addon-theme'
+import type { MadisonAddonDataQueryTask } from '@/core/madison/core/addon-base'
+import { LRUCache } from '@/components/LoongCalendar'
 
-export class MetricDataManager {
-  /**
-   * <metricName, >
-   */
-  private __metricDataMap: Map<string, MetricData> = new Map()
-  private __madison: Madison
-
-  constructor(metricName: string[], madison: Madison) {
-    metricName.forEach((metricName) => {
-      this.__metricDataMap.set(metricName, new MetricData(metricName, this.__madison))
-    })
-    this.__madison = madison
-  }
-
-  add(metricName: string[]): void
-  add(metricName: string): void
-  add(param1: string | string[]): void {
-    if (typeof param1 === 'string') {
-      if (!this.__metricDataMap.has(param1)) {
-        this.__metricDataMap.set(param1, new MetricData(param1, this.__madison))
-      }
-    } else {
-      param1.forEach((name) => {
-        if (!this.__metricDataMap.has(name)) {
-          this.__metricDataMap.set(name, new MetricData(name, this.__madison))
-        }
-      })
-    }
-  }
-
-  set(name: string, id: string, data: MachineMetricRes): boolean {
-    const ins = this.get(name)
-    if (!ins) return false
-    return ins.set(id, data)
-  }
-
-  get(metricName: string): MetricData | undefined
-  get(metricName: string[]): MetricData[]
-  get(param1: string | string[]): MetricData | MetricData[] | undefined {
-    if (typeof param1 === 'string') {
-      return this.__metricDataMap.get(param1)
-    } else {
-      return param1
-        .map((name) => {
-          const data = this.__metricDataMap.get(name)
-          if (data === undefined) return
-          return data
-        })
-        .filter((item) => item !== undefined)
-    }
-  }
-
-  checkDataExist(metricName: string[], id: string): string[] {
-    const res: string[] = []
-    metricName.forEach((name) => {
-      const ins = this.get(name)
-      if (!ins) {
-        this.add(name)
-        res.push(name)
-        return
-      }
-      if (!ins.has(id)) {
-        res.push(name)
-      }
-    })
-    return res
-  }
-
-  getData(metricName: string[], id: string) {
-    return metricName
-      .map((name) => {
-        const ins = this.get(name)
-        if (!ins) return
-        return ins.get(id)
-      })
-      .filter((item) => item !== undefined)
-  }
-}
-
-export class MetricData {
-  readonly name: string
-  /**
-   * <startTime+endTime, >
-   */
-  private __dataMap: Map<string, MetricDataDetail> = new Map()
-  private __madison: Madison
-
-  constructor(name: string, madison: Madison) {
-    this.name = name
-    this.__madison = madison
-  }
-
-  has(id: string) {
-    return this.__dataMap.has(id)
-  }
-
-  set(id: string, data: MachineMetricRes): boolean {
-    this.__dataMap.set(id, new MetricDataDetail(data, id + '-' + this.name, this.__madison, this.name))
-    return true
-  }
-
-  get(id: string) {
-    return this.__dataMap.get(id)
-  }
-}
-
-export class MetricDataDetail {
+export class MetriMachineDataDetail {
   private __data: MachineMetricRes
   readonly id: string
   private __myChart: echarts.ECharts | null = null
   private __watchHandleTheme: WatchHandle | null = null
-  private __madison: Madison
+  private __madisonTheme: Ref<MadisonTheme, MadisonTheme>
   private __selectSeries: string = ''
   readonly name: string
 
   windowResizeFunc: any
 
-  constructor(data: MachineMetricRes, id: string, madison: Madison, name: string) {
+  constructor(
+    data: MachineMetricRes,
+    id: string,
+    madisonTheme: Ref<MadisonTheme, MadisonTheme>,
+    name: string
+  ) {
     this.__data = data
     this.id = id
-    this.__madison = madison
+    this.__madisonTheme = madisonTheme
     this.name = name
 
     this.windowResizeFunc = this.resizeChart.bind(this)
@@ -138,7 +39,7 @@ export class MetricDataDetail {
     if (this.__watchHandleTheme) this.__watchHandleTheme.stop()
     this.distory()
     const res = this.renderChart(chartElement)
-    this.__watchHandleTheme = watch(this.__madison.theme.theme, (newVal) => {
+    this.__watchHandleTheme = watch(this.__madisonTheme, (newVal) => {
       if (this.__myChart) {
         this.__myChart.dispose()
         this.__myChart = null
@@ -149,7 +50,7 @@ export class MetricDataDetail {
   }
 
   private renderChart(element: HTMLDivElement): boolean {
-    const theme = this.__madison.theme.theme.value
+    const theme = this.__madisonTheme.value
 
     const data: echarts.SeriesOption[] = this.__data.map((item) => {
       return {
@@ -199,7 +100,7 @@ export class MetricDataDetail {
       yAxis: {
         type: 'value',
         axisLabel: {
-          formatter: function(value) {
+          formatter: function (value) {
             if (value >= 1000000000) {
               return (value / 1000000000).toFixed(3) + 'B' // 十亿
             } else if (value >= 1000000) {
@@ -299,5 +200,48 @@ export class MetricDataDetail {
     if (this.__myChart) {
       this.__myChart.resize()
     }
+  }
+}
+
+export class MetricMachineDatabase {
+  /** namespace/type/detail node or pod/metricName/startTime/endTime */
+  private __data: Reactive<LRUCache<string, MadisonAddonDataQueryTask<MetriMachineDataDetail>>> =
+    reactive(
+      new LRUCache(200, (k, v) => {
+        this.deleteCallback(k, v)
+      })
+    )
+
+  private __deleteCallback: (
+    k: string,
+    v: MadisonAddonDataQueryTask<MetriMachineDataDetail>
+  ) => void
+
+  constructor(
+    deleteCallback: (key: string, value: MadisonAddonDataQueryTask<MetriMachineDataDetail>) => void
+  ) {
+    this.__deleteCallback = deleteCallback
+  }
+
+  private deleteCallback(key: string, value: MadisonAddonDataQueryTask<MetriMachineDataDetail>) {
+    this.__deleteCallback(key, value)
+    value.data?.distory()
+  }
+
+  has(key: string): boolean {
+    return this.__data.has(key)
+  }
+
+  get(key: string): MadisonAddonDataQueryTask<MetriMachineDataDetail> | undefined {
+    return this.__data.get(key)
+  }
+
+  set(key: string, value: MadisonAddonDataQueryTask<MetriMachineDataDetail>) {
+    return this.__data.set(key, value)
+  }
+
+  clear() {
+    const keys = Array.from(this.__data.keys())
+    keys.forEach(key => this.__data.delete(key))
   }
 }

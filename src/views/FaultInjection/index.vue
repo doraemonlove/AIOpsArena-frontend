@@ -43,17 +43,17 @@ onBeforeUnmount(() => {
   <Structure :main-full="true">
     <template #main>
       <div class="w-full h-full overflow-x-hidden relative">
-        <FaultManager />
-        <div
-          style="height: calc(100% - 80px);"
-          class="relative"
-        >
+        <!-- <FaultManager /> -->
+        <div class="relative h-full">
           <LoongCalendar
             :id="CalendarFaultsManager.CAL_KEY"
             :destory="false"
           >
             <template #headerCenter>
-              <FaultCalendarPrompt />
+              <div class="flex gap-2 items-center">
+                <FaultManager />
+                <FaultCalendarPrompt />
+              </div>
             </template>
             <template #canvasCenter>
               <div

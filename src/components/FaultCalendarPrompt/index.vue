@@ -9,7 +9,7 @@ const datesToWaitForLoadingError = calendarFaultsManager.datesToWaitForLoadingEr
 </script>
 
 <template>
-  <div class="w-full flex items-center justify-center gap-4 flex-shrink-0">
+  <div class="flex items-center justify-center gap-4 flex-shrink-0">
     <div
       v-show="currentRenderDataLoaded"
       class="max-w-[240px]"

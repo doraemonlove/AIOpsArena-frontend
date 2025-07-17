@@ -1,14 +1,16 @@
-import { MadisonAddonDataS2E } from '@/core/madison/core/addon-base'
-import type { RouterPromiseSyncFuncRes } from '@/core/madison/types'
-import { computed, ref, type ComputedRef, type Ref, watch } from 'vue'
-import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
-import { MetricDataDetail, MetricDataManager } from './data'
-import { LRUCache } from '@/core/madison/utils'
-import { getMachinemetric, getNodeList, getPodlist } from '../api'
+import { MadisonAddon, MadisonAddonDataQueryTask } from '@/core/madison/core/addon-base'
+import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputedRef } from 'vue'
+import { MetricMachineDatabase, MetriMachineDataDetail } from './data'
 import type { Madison } from '@/core/madison/core'
+import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
+import { MadisonDataQueryTaskStatus, type RouterPromiseSyncFuncRes } from '@/core/madison/types'
+import { createLoopQuery, isNumber, LRUCache } from '@/core/madison/utils'
 import { NodeOrPod } from './nplist'
+import { getMachinemetric, getMachinemetricData, getNodeList, getPodlist } from '../api'
 
-export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
+export class Machine extends MadisonAddon {
+  readonly MAX_INTERVAL = 1 * 60 * 15
+  private __isCreatingQueryTask: Ref<boolean> = ref(false)
   private __type: Ref<'node' | 'pod'> = ref('node')
   private __queryType: Ref<'pod' | 'node'> = ref('node')
   private __pod: Ref<string> = ref('')
@@ -19,49 +21,68 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
   private __queryNamespace: Ref<string> = ref('')
   private __metricName: Ref<string> = ref('')
   private __queryMetricName: Ref<string> = ref('')
+  private __displayStartTime: Ref<number> = ref(0)
+  private __displayEndTime: Ref<number> = ref(0)
+  private __apiStartTime: Ref<number> = ref(0)
+  private __apiEndTime: Ref<number> = ref(0)
   private __metricNameList: ComputedRef<string[]> = computed(() => {
     return this.__metricName.value.split(',').filter((str) => str !== '')
   })
   private __queryMetricNameList: ComputedRef<string[]> = computed(() => {
     return this.__queryMetricName.value.split(',').filter((str) => str !== '')
   })
-  /**
-   * metricDataDetail的id
-   */
-  private __queryMetricDataDetailId: ComputedRef<string> = computed(
-    () => this.__queryStartTime.value.toString() + '-' + this.__queryEndTime.value.toString() + '-' + (this.__queryType.value === 'node' ? this.__queryNode.value : this.__queryPod.value)
-  )
-  private __metricDataDetailId: ComputedRef<string> = computed(
-    () => this.__startTime.value.toString() + '-' + this.__endTime.value.toString() + '-' +  (this.__type.value === 'node' ? this.__node.value : this.__pod.value)
-  )
-  /**
-   * <namespace, >
-   */
-  private __dataMap: LRUCache<string, { node: MetricDataManager; pod: MetricDataManager }> =
-    new LRUCache(10)
-
-  private __asyncDisable = false
-
+  private __displayIdList: ComputedRef<string[]> = computed(() => {
+    const namespace = this.__namespace.value
+    const type = this.__type.value
+    const nodeOrPod = type === 'node' ? this.__node.value : this.__pod.value
+    const metricNameList = this.__metricNameList.value
+    const startTime = this.__displayStartTime.value.toString()
+    const endTime = this.__displayEndTime.value.toString()
+    const res: string[] = []
+    metricNameList.forEach((metricName) => {
+      const id = `${namespace}/${type}/${nodeOrPod}/${metricName}/${startTime}/${endTime}`
+      res.push(id)
+    })
+    return res
+  })
+  private __queryIdList: ComputedRef<string[]> = computed(() => {
+    const namespace = this.__queryNamespace.value
+    const type = this.__queryType.value
+    const nodeOrPod = type === 'node' ? this.__queryNode.value : this.__queryPod.value
+    const metricNameList = this.__queryMetricNameList.value
+    const startTime = this.__apiStartTime.value.toString()
+    const endTime = this.__apiEndTime.value.toString()
+    const res: string[] = []
+    metricNameList.forEach((metricName) => {
+      const id = `${namespace}/${type}/${nodeOrPod}/${metricName}/${startTime}/${endTime}`
+      res.push(id)
+    })
+    return res
+  })
+  /** Map<taskId, func> */
+  protected __loopStopFuncs: Map<string, () => void> = new Map()
+  /** <namespace> */
   private __nodeListMap: LRUCache<string, NodeOrPod[]> = new LRUCache()
   private __podListMap: LRUCache<string, NodeOrPod[]> = new LRUCache()
+  /** db */
+  private __db: MetricMachineDatabase = new MetricMachineDatabase((key, value) => {
+    /** delete callback */
+  })
 
-  /**
-   * 数据展示
-   */
-  get data(): ComputedRef<MetricDataDetail[]> {
+  get data(): ComputedRef<MadisonAddonDataQueryTask<MetriMachineDataDetail>[]> {
     return computed(() => {
-      const namespace = this.__namespace.value
-      const type = this.__type.value
-      const metricName = this.__metricNameList.value
-      const metricDataDetailId = this.__metricDataDetailId.value
-      const manager = this.getManager(namespace, type)
-      return manager.getData(metricName, metricDataDetailId)
+      const idList = this.__displayIdList.value
+      const res: MadisonAddonDataQueryTask<MetriMachineDataDetail>[] = []
+      idList.forEach((id) => {
+        const task = this.__db.get(id)
+        if (task) {
+          res.push(task)
+        }
+      })
+      return res
     })
   }
 
-  /**
-   * 选择的的metricName
-   */
   get selectedMetricName(): ComputedRef<Set<string>> {
     return computed(() => {
       return new Set(this.__metricNameList.value)
@@ -88,34 +109,71 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
     })
   }
 
+  /** 展示数据的起始时刻 */
+  get displayStartTime(): ComputedRef<Date> {
+    return computed(() => new Date(this.__displayStartTime.value * 1000))
+  }
+  /** 展示数据的结束时刻 */
+  get displayEndTime(): ComputedRef<Date> {
+    return computed(() => new Date(this.__displayEndTime.value * 1000))
+  }
+
+  get timeRange(): WritableComputedRef<string | [Date, Date], [Date, Date]> {
+    return computed({
+      get: (): string | [Date, Date] => {
+        if (this.__displayStartTime.value === 0 || this.__displayEndTime.value === 0) {
+          return ''
+        }
+        return [
+          this.displayStartTime.value,
+          this.displayEndTime.value
+        ]
+      },
+      set: (value: [Date, Date]) => {
+        this.__apiStartTime.value = Math.floor(value[0].getTime() / 1000)
+        this.__apiEndTime.value = Math.floor(value[1].getTime() / 1000)
+      }
+    })
+  }
+
+  get isCreatingQueryTask(): ComputedRef<boolean> {
+    return computed(() => {
+      return this.__isCreatingQueryTask.value
+    })
+  }
+
   constructor(madison: Madison) {
     super(madison)
 
+    madison.routerPromise.addPrecheck(this.precheck, this)
     madison.routerPromise.addCheck(this.check, this)
-    madison.routerPromise.addCheck(this.checkPodList, this)
-    madison.routerPromise.addCheck(this.checkNodeList, this)
+    madison.routerPromise.addPostcheck(this.postcheck, this)
 
     madison.routerPromise.addPrecheck(this.precheck, this)
     madison.routerPromise.addPostcheck(this.postcheck, this)
 
-    /**
-     * 销毁没有用的metricDataDetail
-     */
-    watch(this.data, (newVal: MetricDataDetail[], oldVal: MetricDataDetail[]) => {
-      const newId = new Set()
-      newVal.forEach((item) => {
-        newId.add(item.id)
-      })
-      oldVal.forEach((item) => {
-        if (!newId.has(item.id)) {
-          item.distory()
-        }
-      })
-    })
+    /** 销毁没有用的MetriMachineDataDetail */
+    watch(
+      this.data,
+      (
+        newVal: MadisonAddonDataQueryTask<MetriMachineDataDetail>[],
+        oldVal: MadisonAddonDataQueryTask<MetriMachineDataDetail>[]
+      ) => {
+        const newId = new Set()
+        newVal.forEach((item) => {
+          newId.add(item.id)
+        })
+        oldVal.forEach((item) => {
+          if (!newId.has(item.id) && item.data) {
+            item.data.distory()
+          }
+        })
+      }
+    )
   }
 
   logoutCallback(): void {
-    this.__dataMap.clear()
+    this.__db.clear()
     this.__type.value = 'node'
     this.__queryType.value = 'node'
     this.__pod.value = ''
@@ -126,14 +184,79 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
     this.__queryNamespace.value = ''
     this.__metricName.value = ''
     this.__queryMetricName.value = ''
-    super.logoutCallback()
+    this.__displayStartTime.value = 0
+    this.__displayEndTime.value = 0
+    this.__apiStartTime.value = 0
+    this.__apiEndTime.value = 0
   }
 
-  precheck(
+  /**
+   * check timestamp and range
+   * @param to
+   */
+  protected checkSTANDET(to: RouteLocationNormalized): true | RouterPromiseSyncFuncRes {
+    const startTimeStr = to.query.startTime
+    const endTimeStr = to.query.endTime
+    /** 没有参数的进入 */
+    if (!startTimeStr && !endTimeStr) {
+      this.__displayStartTime.value = 0
+      this.__displayEndTime.value = 0
+      return true
+    }
+    if (
+      startTimeStr &&
+      endTimeStr &&
+      isNumber(startTimeStr as string) &&
+      isNumber(endTimeStr as string)
+    ) {
+      const startTime = parseInt(startTimeStr as string)
+      const endTime = parseInt(endTimeStr as string)
+      const range = endTime - startTime
+      if (startTime > Date.now() / 1000 || startTime <= 0) {
+        return [
+          'redirect',
+          {
+            name: to.name,
+            query: { ...to.query, startTime: null, endTime: null },
+            params: to.params
+          }
+        ]
+      }
+      if (endTime > Date.now() / 1000 || endTime <= 0) {
+        return [
+          'redirect',
+          {
+            name: to.name,
+            query: { ...to.query, startTime: null, endTime: null },
+            params: to.params
+          }
+        ]
+      }
+      if (range > this.MAX_INTERVAL || range < 0) {
+        return [
+          'redirect',
+          {
+            name: to.name,
+            query: { ...to.query, startTime: null, endTime: null },
+            params: to.params
+          }
+        ]
+      }
+      this.__apiStartTime.value = startTime
+      this.__apiEndTime.value = endTime
+      return true
+    }
+    return [
+      'redirect',
+      { name: to.name, query: { ...to.query, startTime: null, endTime: null }, params: to.params }
+    ]
+  }
+
+  private precheck(
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): RouterPromiseSyncFuncRes {
-    if (to.name !== 'displaymetricmachine') return
+    if (to.name !== 'metricmachine') return
     const query = to.query
     //
     // 检查namespace
@@ -143,7 +266,7 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
       return [
         'redirect',
         {
-          name: 'metric',
+          name: 'data',
           query: {}
         }
       ]
@@ -156,7 +279,7 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
       return [
         'redirect',
         {
-          name: 'displaymetricmachine',
+          name: 'metricmachine',
           query: { ...query, type: 'node' }
         }
       ]
@@ -196,11 +319,7 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
     // 检查metricName
     //
     const metricNameStr = query.metricName as string
-    const metricName = metricNameStr
-      ? metricNameStr
-        .split(',')
-        .map((v) => v.trim())
-      : []
+    const metricName = metricNameStr ? metricNameStr.split(',').map((v) => v.trim()) : []
     const setMetricName = new Set(metricName)
     const noEmptyList = Array.from(setMetricName).filter((v) => v)
     //
@@ -210,7 +329,7 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
       return [
         'redirect',
         {
-          name: 'displaymetricmachine',
+          name: 'metricmachine',
           query: {
             ...query,
             metricName: [...noEmptyList].join(',')
@@ -233,10 +352,10 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
       return [
         'redirect',
         {
-          name: 'displaymetricmachine',
+          name: 'metricmachine',
           query: {
             ...query,
-            startTime: Math.floor(Date.now() / 1000) - 60 * 30,
+            startTime: Math.floor(Date.now() / 1000) - this.MAX_INTERVAL,
             endTime: Math.floor(Date.now() / 1000)
           }
         }
@@ -244,46 +363,42 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
     }
   }
 
-  async check(
+  private async check(
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): Promise<RouteLocationRaw | void> {
-    const can = await this.defNoNSCheck(to, from, 'displaymetricmachine')
+    const can = await this.defNoNSCheck(to, from, 'metricmachine')
     if (!can) return
-    this.__asyncDisable = true
+    /** 检查namespace合法性 */
+    await this.__madison.namespace.waitingForQueryNamespaceCheck
+    const nv = this.__madison.namespace.queryNamespaceIsValid
+    if (!nv) return { name: 'data' }
+    /** 检查metricName合法性 */
     await this.__madison.metric.waitingForMetricName
-    //
-    // 检查namespace
-    //
     const res = this.__madison.metric.hasNamespace(this.__queryNamespace.value)
-    if (!res) return
+    if (!res) return { name: 'data' }
     const checkRes = this.checkMachineMetricName(to, this.__queryMetricNameList.value)
     if (checkRes !== true) return checkRes
-    //
-    // 现在的metricName是正确的
-    //
-    const manager = this.getManager(this.__queryNamespace.value, this.__queryType.value)
-    //
-    // 直接加入
-    //
-    manager.add(this.__queryMetricNameList.value)
-    //
-    // 查看需要查询哪些
-    //
-    const needQuery = manager.checkDataExist(
-      this.__queryMetricNameList.value,
-      this.__queryMetricDataDetailId.value
-    )
-
-    await this.getMetricData(manager, needQuery)
+    /** 检查数据 */
+    const needQuery: string[] = []
+    const namespace = this.__queryNamespace.value
+    const type = this.__queryType.value
+    const nodeOrPod = type === 'node' ? this.__queryNode.value : this.__queryPod.value
+    const startTime = this.__apiStartTime.value.toString()
+    const endTime = this.__apiEndTime.value.toString()
+    this.__queryMetricNameList.value.forEach((metricName) => {
+      const key = `${namespace}/${type}/${nodeOrPod}/${metricName}/${startTime}/${endTime}`
+      if (!this.__db.has(key)) needQuery.push(key)
+    })
+    await this.getMetricData(needQuery)
   }
 
-  postcheck(
+  private postcheck(
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): RouterPromiseSyncFuncRes {
-    if (to.name !== 'displaymetricmachine') return
-    this.__asyncDisable = false
+    if (to.name !== 'metricmachine') return
+    this.__isCreatingQueryTask.value = false
     this.__type.value = this.__queryType.value
     this.__namespace.value = this.__queryNamespace.value
     this.__metricName.value = this.__queryMetricName.value
@@ -292,19 +407,8 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
     } else {
       this.__pod.value = this.__queryPod.value
     }
-    this.__startTime.value = this.__queryStartTime.value
-    this.__endTime.value = this.__queryEndTime.value
-  }
-
-  private getManager(namespace: string, type: 'node' | 'pod') {
-    if (!this.__dataMap.has(namespace)) {
-      this.__dataMap.set(namespace, {
-        node: new MetricDataManager([], this.__madison),
-        pod: new MetricDataManager([], this.__madison)
-      })
-    }
-    const ms = this.__dataMap.get(namespace) as { node: MetricDataManager; pod: MetricDataManager }
-    return ms[type]
+    this.__displayStartTime.value = this.__apiStartTime.value
+    this.__displayEndTime.value = this.__apiEndTime.value
   }
 
   /**
@@ -346,62 +450,80 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
    * @param manager
    * @param metricName
    */
-  private async getMetricData(manager: MetricDataManager, metricName: string[]) {
-    this.__searching.value = true
+  private async getMetricData(metricNameList: string[]) {
+    this.__isCreatingQueryTask.value = true
     const asyncList: Promise<void>[] = []
-    metricName.forEach((name) => {
+    const namespace = this.__queryNamespace.value
+    const type = this.__queryType.value
+    const nodeOrPod = type === 'node' ? this.__queryNode.value : this.__queryPod.value
+    const startTime = this.__apiStartTime.value.toString()
+    const endTime = this.__apiEndTime.value.toString()
+    metricNameList.forEach((metricName) => {
+      const key = `${namespace}/${type}/${nodeOrPod}/${metricName}/${startTime}/${endTime}`
       const func = async () => {
         const res = await getMachinemetric({
           namespace: this.__queryNamespace.value,
-          metricName: name,
-          startTime: this.__apiUseStartTime.value,
-          endTime: this.__apiUseEndTime.value,
+          metricName: metricName,
+          startTime: this.__apiStartTime.value,
+          endTime: this.__apiEndTime.value,
           metricType: this.__queryType.value,
           node: this.__queryNode.value,
           pod: this.__queryPod.value
         })
         const data = res.data
-        if (data.code === 0) {
-          manager.set(name, this.__queryMetricDataDetailId.value, data.data)
-        }
+        if (data.code !== 0) return
+        const taskId = data.data.taskId
+        const { stop } = createLoopQuery(
+          { taskId },
+          getMachinemetricData,
+          (res) => {
+            if (res.data.status === 'SUCCESS') return true
+            if (res.data.status === 'FAILURE') return true
+            return false
+          },
+          (res) => {
+            this.__loopStopFuncs.delete(key)
+            const status = res.data.status
+            const result = res.data.result
+            const task = this.__db.get(key)
+            if (task === undefined) return
+            if (result !== null || result !== undefined) {
+              task.data = new MetriMachineDataDetail(
+                result,
+                key,
+                this.__madison.theme.theme,
+                metricName
+              )
+            }
+            task.quering = false
+            if (status === 'SUCCESS') task.status = MadisonDataQueryTaskStatus.SUCCESS
+            else task.status = MadisonDataQueryTaskStatus.ERROR
+          },
+          () => {
+            const task = this.__db.get(key)
+            if (task === undefined) return
+            task.status = MadisonDataQueryTaskStatus.ERROR
+          },
+          () => {}
+        )
+        this.__loopStopFuncs.set(key, stop)
       }
       asyncList.push(func())
     })
     await Promise.all(asyncList)
-    this.__searching.value = false
-  }
-
-  /**
-   * 手动调整时间范围，会直接路由跳转
-   * @param timestamp
-   * @param duration
-   */
-  checkRangeData(timestamp: number, duration: number): void
-  checkRangeData(timestamp: Date, duration: number): void
-  checkRangeData(timestamp: number | Date, duration: number): void {
-    if (timestamp instanceof Date) {
-      timestamp = timestamp.getTime()
-    }
-    const route = this.__madison.routerPromise.router.currentRoute.value
-    this.__madison.routerPromise.router.push({
-      name: route.name,
-      query: { ...route.query, timestamp: timestamp as number, duration: duration }
-    })
   }
 
   async checkPodList(
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): Promise<RouteLocationRaw | void> {
-    const can = await this.defNoNSCheck(to, from, 'displaymetricmachine')
+    const can = await this.defNoNSCheck(to, from, 'metricmachine')
     if (!can) return
     if (this.__queryType.value === 'node') return
-    await this.__madison.metric.waitingForMetricName
-    //
-    // 检查namespace
-    //
-    const res = this.__madison.metric.hasNamespace(this.__queryNamespace.value)
-    if (!res) return
+    /** 检查namespace合法性 */
+    await this.__madison.namespace.waitingForQueryNamespaceCheck
+    const nv = this.__madison.namespace.queryNamespaceIsValid
+    if (!nv) return
     const namespace = this.__queryNamespace.value
     if (this.__podListMap.has(namespace)) return
 
@@ -417,15 +539,13 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): Promise<RouteLocationRaw | void> {
-    const can = await this.defNoNSCheck(to, from, 'displaymetricmachine')
+    const can = await this.defNoNSCheck(to, from, 'metricmachine')
     if (!can) return
     if (this.__queryType.value === 'pod') return
-    await this.__madison.metric.waitingForMetricName
-    //
-    // 检查namespace
-    //
-    const res = this.__madison.metric.hasNamespace(this.__queryNamespace.value)
-    if (!res) return
+    /** 检查namespace合法性 */
+    await this.__madison.namespace.waitingForQueryNamespaceCheck
+    const nv = this.__madison.namespace.queryNamespaceIsValid
+    if (!nv) return
     const namespace = this.__queryNamespace.value
     if (this.__nodeListMap.has(namespace)) return
 
@@ -437,16 +557,13 @@ export class Machine extends MadisonAddonDataS2E<MetricDataDetail> {
     }
   }
 
-  /**
-   * 在选择好namespace等数据之后直接调用函数
-   */
-  query() {
+  createQueryTask() {
     this.__madison.routerPromise.router.push({
-      name: 'displaymetricmachine',
+      name: 'metricmachine',
       query: {
         namespace: this.__queryNamespace.value,
-        startTime: this.__queryStartTime.value,
-        endTime: this.__queryEndTime.value,
+        startTime: this.__apiStartTime.value,
+        endTime: this.__apiEndTime.value,
         metricName: this.__queryMetricName.value === '' ? null : this.__queryMetricName.value,
         type: this.__type.value,
         [this.__type.value]: this.__type.value === 'node' ? this.__queryNode.value : this.__queryPod.value

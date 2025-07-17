@@ -81,6 +81,8 @@ export class LoadItem {
           /** 正在删除 */
           this.status = LoadItemStatus.DELETING
         }
+      } else {
+        console.error(data.message)
       }
       if (this.status === LoadItemStatus.NONEXISTENT) return
       setTimeout(func, 500)

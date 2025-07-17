@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Madison } from '@/core/madison'
-import type { DatasetIns } from '@/core/madison-addon-dataset-manager/core/dataset'
+import type { DatasetIns } from '@/core/madison-addon-dataset/core/dataset'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 
 const madison = Madison.getInstance()
