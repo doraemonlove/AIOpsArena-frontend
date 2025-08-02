@@ -153,7 +153,6 @@ export class Events extends LoongAddon {
     let frameId: number | NodeJS.Timeout | null = null
     const tryRequestAnimationFrame = () => {
       frameId = requestAnimationFrame(() => {
-        // console.log('requestAnimationFrame')
         this.updateCanvasCursor()
         this.__loong.emit('frame-update')
         tryRequestAnimationFrame()

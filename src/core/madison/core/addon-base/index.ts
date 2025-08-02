@@ -1,15 +1,10 @@
 import type { RouteLocationNormalized, RouteLocationNormalizedLoadedGeneric, RouteLocationRaw } from 'vue-router'
 import type { Madison } from '..'
-import { MadisonDataQueryTaskStatus, type MadisonApiMsg, type RouterPromiseSyncFuncRes } from '../../types'
+import { MadisonDataQueryTaskStatus, type RouterPromiseSyncFuncRes } from '../../types'
 import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputedRef } from 'vue'
 import { debounce, isNumber, message, parseTimeToSeconds } from '../../utils'
 
 export abstract class MadisonAddon {
-  readonly apiMsg: MadisonApiMsg = {
-    'zh-CN': {},
-    'en-US': {}
-  }
-
   protected readonly __madison: Madison
 
   constructor(madison: Madison) {
@@ -19,6 +14,13 @@ export abstract class MadisonAddon {
   }
 
   abstract logoutCallback(): void
+
+  messageI18n(msgKey: string, type?: 'error' | 'success' | 'info' | 'warning', duration?: number) {
+    msgKey = 'Madison.' + msgKey
+    const t = this.__madison.i18n.getT()
+    const msg = t(msgKey)
+    message(msg, type, duration)
+  }
 
   /**
    * #### 数据预检查
@@ -105,7 +107,7 @@ export abstract class MadisonAddon {
     from: RouteLocationNormalized,
     check: string | DefCheckFunc | true
   ): Promise<boolean> {
-    if (to.name === 'login' || to.name === 'register') return false
+    if (to.name === 'login' || to.name === 'register' || to.name === 'retrieve') return false
     //
     // 是否是匹配的页面
     //

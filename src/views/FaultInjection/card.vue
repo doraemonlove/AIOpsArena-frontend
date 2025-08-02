@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { useMadison } from '@/core/madison'
 import { computed, ref, type ComputedRef } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const margin = 15
 const madison = useMadison()
 const calendarFaultsManager = madison.faultManager.calendarFaultsManager
@@ -42,7 +45,7 @@ const top = computed(() => {
   >
     <div>
       <span class="text-lg font-bold mr-3">{{ schedule.title }}</span>
-      <span>分类: {{ schedule.category }}</span>
+      <span>{{ t('FaultInjection.DetailDialog.Category') }}: {{ schedule.category }}</span>
     </div>
     <div>
       {{ schedule.content }}

@@ -8,6 +8,18 @@ import { Options } from './core/addons/loong-addon-options'
 
 export * from './core'
 
+function consoleLC() {
+  console.log(
+    `LoongCalendar!!! 🐉
+___________________
+|  Sun.  |  Mon.  |
+|________|________|
+|  xxxx  |  xxxx  |
+|________|________|
+`
+  )
+}
+
 export class LoongCalendar extends EventEmitter<LoongEvents> {
   private __map
 
@@ -22,6 +34,9 @@ export class LoongCalendar extends EventEmitter<LoongEvents> {
 
   constructor(id: string, options: LoongCalendarOptions, map: Map<string, LoongCalendar>) {
     super()
+
+    consoleLC()
+
     this.__map = map
     this.id = id
 

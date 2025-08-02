@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useMadison } from '@/core/madison'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   title: string
@@ -8,6 +9,8 @@ const props = defineProps<{
   to: string
   needNamespace: boolean
 }>()
+
+const { t } = useI18n()
 const madison = useMadison()
 const namespace = madison.namespace.queryNamespace
 </script>
@@ -32,7 +35,7 @@ const namespace = madison.namespace.queryNamespace
         :to="{ name: to, query: { namespace: needNamespace ? namespace : undefined }}"
         class="card__bottom-button border-t dark:border-white/20 text-moonlight-500 hover:text-white hover:bg-moonlight-500"
       >
-        查看详情
+        {{ t('Data.Home.ViewDetails') }}
       </router-link>
     </div>
   </div>

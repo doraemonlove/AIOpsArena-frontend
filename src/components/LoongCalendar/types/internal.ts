@@ -88,11 +88,11 @@ export interface LoongCalendaerRendererOptions {
 }
 
 export enum LoongCalendarScheduleStatus {
-  READY,
-  SUCCESS,
-  HIDDEN,
-  FAILURE,
-  DESTORYED,
+  READY = 'READY',
+  SUCCESS = 'SUCCESS',
+  HIDDEN = 'HIDDEN',
+  FAILURE = 'FAILURE',
+  DESTORYED = 'DESTORYED',
 }
 
 export type LoongCalendarManagerScheduleData =

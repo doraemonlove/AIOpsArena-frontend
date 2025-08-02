@@ -155,34 +155,34 @@ const router = createRouter({
       name: 'dataset',
       component: () => import('../views/Dataset/index.vue')
     },
-    {
-      path: '/algorithm',
-      name: 'algorithm',
-      component: () => import('../views/test.vue')
-    },
-    {
-      path: '/template',
-      name: 'template',
-      component: () => import('../views/AboutView.vue')
-    },
-    {
-      path: '/evaluation',
-      name: 'evaluation',
-      component: () => import('../views/AboutView.vue')
-    },
-    {
-      path: '/leaderboard',
-      name: 'leaderboard',
-      component: () => import('../views/HomeView.vue')
-    },
-    {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue')
-    },
+    // {
+    //   path: '/algorithm',
+    //   name: 'algorithm',
+    //   component: () => import('../views/test.vue')
+    // },
+    // {
+    //   path: '/template',
+    //   name: 'template',
+    //   component: () => import('../views/AboutView.vue')
+    // },
+    // {
+    //   path: '/evaluation',
+    //   name: 'evaluation',
+    //   component: () => import('../views/AboutView.vue')
+    // },
+    // {
+    //   path: '/leaderboard',
+    //   name: 'leaderboard',
+    //   component: () => import('../views/HomeView.vue')
+    // },
+    // {
+    //   path: '/about',
+    //   name: 'about',
+    //   // route level code-splitting
+    //   // this generates a separate chunk (About.[hash].js) for this route
+    //   // which is lazy-loaded when the route is visited.
+    //   component: () => import('../views/AboutView.vue')
+    // },
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
@@ -203,18 +203,18 @@ const madison = Madison.getInstance(router)
 
 router.beforeEach(async (to, from, next) => {
   NProgress.start()
-  console.log('beforeEach ready to precheck')
+  // console.log('beforeEach ready to precheck')
   if (!madison.routerPromise.precheck(to, from, next)) return
-  console.log('beforeEach precheck finish, ready to check')
+  // console.log('beforeEach precheck finish, ready to check')
   if (!(await madison.routerPromise.check(to, from, next))) return
-  console.log('beforeEach check finish')
+  // console.log('beforeEach check finish')
   next()
 })
 
 router.afterEach((to, from, failure) => {
-  console.log('afterEach ready to postcheck')
+  // console.log('afterEach ready to postcheck')
   madison.routerPromise.postcheck(to, from)
-  console.log('afterEach postcheck finish')
+  // console.log('afterEach postcheck finish')
   NProgress.done()
 })
 

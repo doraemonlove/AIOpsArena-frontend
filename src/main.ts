@@ -13,6 +13,19 @@ import App from './App.vue'
 import router from './router'
 import { Madison } from './core/madison'
 
+console.log(
+  '%cWelcome to %cAI%cOps %cArena%c!',
+  'color:#white; font-size:20px; font-weight:bold;',
+  'color: #4FADFF; font-size:20px; font-weight:bold;',
+  'color:#white; font-size:20px; font-weight:bold;',
+  'color:#FF87C8; font-size:20px; font-weight:bold;',
+  'color:#white; font-size:20px; font-weight:bold;'
+)
+
+console.log('%cProduced by SakuraLong → https://github.com/SakuraLong/AIOpsArena-frontend',
+  'font-size:16px; font-weight:bold;'
+)
+
 /**
  * 减小暗黑模式下白屏加载时间
  */

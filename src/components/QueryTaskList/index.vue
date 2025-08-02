@@ -2,6 +2,9 @@
 import { MadisonAddonDataS2E, MadisonAddonDataTMR2T } from '@/core/madison/core/addon-base'
 import QueryTaskCreator from '@/components/QueryTaskCreator/index.vue'
 import item from './item.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const props = defineProps<{
   manager: MANAGER1,
   type: 't2r',
@@ -40,7 +43,7 @@ const data: {
   <div class="p-4 pt-0 h-full w-64 flex flex-col gap-4 sticky top-0 overflow-auto">
     <div class="sticky top-0 bg-bg dark:bg-bg-dark z-10 pt-4">
       <div>
-        <span class="text-2xl">查询任务列表</span>
+        <span class="text-2xl">{{ t('Data.QueryTaskList.QueryTaskList') }}</span>
       </div>
       <QueryTaskCreator
         v-if="!nonCreate"
@@ -52,7 +55,7 @@ const data: {
       class="h-full flex justify-center items-center"
     >
       <span>
-        当前无查询任务
+        {{ t('Data.QueryTaskList.NullQueryTask') }}
       </span>
     </div>
     <div

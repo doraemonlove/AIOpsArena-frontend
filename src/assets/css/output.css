@@ -656,10 +656,6 @@ body {
   visibility: visible;
 }
 
-.invisible {
-  visibility: hidden;
-}
-
 .static {
   position: static;
 }
@@ -710,10 +706,6 @@ body {
 
 .top-1\/2 {
   top: 50%;
-}
-
-.top-16 {
-  top: 4rem;
 }
 
 .-z-10 {
@@ -800,10 +792,6 @@ body {
 
 .h-2 {
   height: 0.5rem;
-}
-
-.h-36 {
-  height: 9rem;
 }
 
 .h-4 {
@@ -935,10 +923,6 @@ body {
   max-width: 600px;
 }
 
-.max-w-screen-lt {
-  max-width: 1200px;
-}
-
 .flex-shrink-0 {
   flex-shrink: 0;
 }
@@ -967,16 +951,12 @@ body {
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 
-.cursor-pointer {
-  cursor: pointer;
-}
-
-.cursor-not-allowed {
-  cursor: not-allowed;
-}
-
 .\!cursor-not-allowed {
   cursor: not-allowed !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
 
 .select-none {
@@ -1069,10 +1049,6 @@ body {
   text-wrap: nowrap;
 }
 
-.break-words {
-  overflow-wrap: break-word;
-}
-
 .rounded {
   border-radius: 0.25rem;
 }
@@ -1083,10 +1059,6 @@ body {
 
 .rounded-full {
   border-radius: 9999px;
-}
-
-.rounded-lg {
-  border-radius: 0.5rem;
 }
 
 .rounded-md {
@@ -1295,20 +1267,12 @@ body {
   padding-top: 1rem;
 }
 
-.pt-40 {
-  padding-top: 10rem;
-}
-
 .pt-6 {
   padding-top: 1.5rem;
 }
 
 .text-center {
   text-align: center;
-}
-
-.font-serif {
-  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 .font-title {
@@ -1332,11 +1296,6 @@ body {
 
 .text-5xl {
   font-size: 3rem;
-  line-height: 1;
-}
-
-.text-6xl {
-  font-size: 3.75rem;
   line-height: 1;
 }
 
@@ -1374,6 +1333,28 @@ body {
 
 .leading-10 {
   line-height: 2.5rem;
+}
+
+.leading-4 {
+  line-height: 1rem;
+}
+
+.leading-6 {
+  line-height: 1.5rem;
+}
+
+.leading-\[48px\] {
+  line-height: 48px;
+}
+
+.\!text-gray-500 {
+  --tw-text-opacity: 1 !important;
+  color: rgb(107 114 128 / var(--tw-text-opacity, 1)) !important;
+}
+
+.text-\[\#67C23A\] {
+  --tw-text-opacity: 1;
+  color: rgb(103 194 58 / var(--tw-text-opacity, 1));
 }
 
 .text-\[\#FF87C8\] {
@@ -1424,14 +1405,8 @@ body {
   color: rgb(239 68 68 / var(--tw-text-opacity, 1));
 }
 
-.text-gray-500 {
-  --tw-text-opacity: 1;
-  color: rgb(107 114 128 / var(--tw-text-opacity, 1));
-}
-
-.\!text-gray-500 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(107 114 128 / var(--tw-text-opacity, 1)) !important;
+.underline {
+  text-decoration-line: underline;
 }
 
 .opacity-\[0\.8\] {
@@ -1489,10 +1464,6 @@ body {
   transition-duration: 150ms;
 }
 
-.duration-300 {
-  transition-duration: 300ms;
-}
-
 .before\:absolute::before {
   content: var(--tw-content);
   position: absolute;
@@ -1546,10 +1517,6 @@ body {
 .hover\:w-fit:hover {
   width: -moz-fit-content;
   width: fit-content;
-}
-
-.hover\:cursor-pointer:hover {
-  cursor: pointer;
 }
 
 .hover\:overflow-visible:hover {
@@ -1613,17 +1580,6 @@ body {
   --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-}
-
-.hover\:shadow-lg:hover {
-  --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
-  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-}
-
-.hover\:shadow-moonlight-500\/50:hover {
-  --tw-shadow-color: rgb(79 173 255 / 0.5);
-  --tw-shadow: var(--tw-shadow-colored);
 }
 
 @media (min-width: 1200px) {

@@ -87,7 +87,7 @@ export function createLoopQuery<P extends {}, V>(
     try {
       const res = await loopQueryFunc(params)
       if (stoped) return
-      const data = res.data
+      const data = res !== undefined ? res.data : res
       const check = loopFinCheck(data)
       if (check) {
         loopFinCallback(data)

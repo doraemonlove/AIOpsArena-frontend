@@ -4,12 +4,12 @@ import { MetricMachineDatabase, MetriMachineDataDetail } from './data'
 import type { Madison } from '@/core/madison/core'
 import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
 import { MadisonDataQueryTaskStatus, type RouterPromiseSyncFuncRes } from '@/core/madison/types'
-import { createLoopQuery, isNumber, LRUCache } from '@/core/madison/utils'
+import { createLoopQuery, formatDate, isNumber, LRUCache } from '@/core/madison/utils'
 import { NodeOrPod } from './nplist'
 import { getMachinemetric, getMachinemetricData, getNodeList, getPodlist } from '../api'
 
 export class Machine extends MadisonAddon {
-  readonly MAX_INTERVAL = 1 * 60 * 15
+  readonly MAX_INTERVAL = Math.floor(Date.now() / 1000)
   private __isCreatingQueryTask: Ref<boolean> = ref(false)
   private __type: Ref<'node' | 'pod'> = ref('node')
   private __queryType: Ref<'pod' | 'node'> = ref('node')
@@ -67,6 +67,7 @@ export class Machine extends MadisonAddon {
   /** db */
   private __db: MetricMachineDatabase = new MetricMachineDatabase((key, value) => {
     /** delete callback */
+    if (value.data) this.__madison.off('theme-change', value.data.themeChange)
   })
 
   get data(): ComputedRef<MadisonAddonDataQueryTask<MetriMachineDataDetail>[]> {
@@ -111,17 +112,17 @@ export class Machine extends MadisonAddon {
 
   /** 展示数据的起始时刻 */
   get displayStartTime(): ComputedRef<Date> {
-    return computed(() => new Date(this.__displayStartTime.value * 1000))
+    return computed(() => new Date(this.__apiStartTime.value * 1000))
   }
   /** 展示数据的结束时刻 */
   get displayEndTime(): ComputedRef<Date> {
-    return computed(() => new Date(this.__displayEndTime.value * 1000))
+    return computed(() => new Date(this.__apiEndTime.value * 1000))
   }
 
   get timeRange(): WritableComputedRef<string | [Date, Date], [Date, Date]> {
     return computed({
       get: (): string | [Date, Date] => {
-        if (this.__displayStartTime.value === 0 || this.__displayEndTime.value === 0) {
+        if (this.__apiStartTime.value === 0 || this.__apiEndTime.value === 0) {
           return ''
         }
         return [
@@ -149,8 +150,8 @@ export class Machine extends MadisonAddon {
     madison.routerPromise.addCheck(this.check, this)
     madison.routerPromise.addPostcheck(this.postcheck, this)
 
-    madison.routerPromise.addPrecheck(this.precheck, this)
-    madison.routerPromise.addPostcheck(this.postcheck, this)
+    madison.routerPromise.addCheck(this.checkNodeList, this)
+    madison.routerPromise.addCheck(this.checkPodList, this)
 
     /** 销毁没有用的MetriMachineDataDetail */
     watch(
@@ -201,6 +202,8 @@ export class Machine extends MadisonAddon {
     if (!startTimeStr && !endTimeStr) {
       this.__displayStartTime.value = 0
       this.__displayEndTime.value = 0
+      this.__apiStartTime.value = 0
+      this.__apiEndTime.value = 0
       return true
     }
     if (
@@ -355,7 +358,7 @@ export class Machine extends MadisonAddon {
           name: 'metricmachine',
           query: {
             ...query,
-            startTime: Math.floor(Date.now() / 1000) - this.MAX_INTERVAL,
+            startTime: Math.floor(Date.now() / 1000) - 1 * 60 * 15,
             endTime: Math.floor(Date.now() / 1000)
           }
         }
@@ -388,7 +391,7 @@ export class Machine extends MadisonAddon {
     const endTime = this.__apiEndTime.value.toString()
     this.__queryMetricNameList.value.forEach((metricName) => {
       const key = `${namespace}/${type}/${nodeOrPod}/${metricName}/${startTime}/${endTime}`
-      if (!this.__db.has(key)) needQuery.push(key)
+      if (!this.__db.has(key)) needQuery.push(metricName)
     })
     await this.getMetricData(needQuery)
   }
@@ -435,7 +438,7 @@ export class Machine extends MadisonAddon {
     })
     if (checkedMetricName.length !== metricName.length) {
       return {
-        name: 'displaymetricmachine',
+        name: 'metricmachine',
         query: {
           ...to.query,
           metricName: checkedMetricName.join(',')
@@ -460,6 +463,23 @@ export class Machine extends MadisonAddon {
     const endTime = this.__apiEndTime.value.toString()
     metricNameList.forEach((metricName) => {
       const key = `${namespace}/${type}/${nodeOrPod}/${metricName}/${startTime}/${endTime}`
+      /** 创建查询任务 */
+      const task = new MadisonAddonDataQueryTask<MetriMachineDataDetail>(
+        key,
+        {
+          name: 'metric',
+          query: {}
+        },
+        `
+            <p class="text-[12px]">
+            namespace: ${namespace}<br/>
+            startTime: ${formatDate(new Date(this.__apiStartTime.value * 1000))}<br/>
+            endTime: ${formatDate(new Date(this.__apiEndTime.value * 1000))}<br/>
+            </p>
+            `,
+        (route) => true
+      )
+      this.__db.set(key, task)
       const func = async () => {
         const res = await getMachinemetric({
           namespace: this.__queryNamespace.value,
@@ -472,7 +492,7 @@ export class Machine extends MadisonAddon {
         })
         const data = res.data
         if (data.code !== 0) return
-        const taskId = data.data.taskId
+        const taskId = data.data.task_id
         const { stop } = createLoopQuery(
           { taskId },
           getMachinemetricData,
@@ -488,12 +508,14 @@ export class Machine extends MadisonAddon {
             const task = this.__db.get(key)
             if (task === undefined) return
             if (result !== null || result !== undefined) {
-              task.data = new MetriMachineDataDetail(
+              const detail = new MetriMachineDataDetail(
                 result,
                 key,
-                this.__madison.theme.theme,
+                this.__madison.theme.theme.value,
                 metricName
               )
+              this.__madison.on('theme-change', detail.themeChange)
+              task.data = detail
             }
             task.quering = false
             if (status === 'SUCCESS') task.status = MadisonDataQueryTaskStatus.SUCCESS

@@ -150,7 +150,6 @@ export class LoongSchedule {
       | Record<any, any>,
     param2?: Record<any, any>
   ) {
-    console.log('new LoongSchedule', startTime, endTime)
     this.__loong = calendar
     this.id = id
     this.title = title

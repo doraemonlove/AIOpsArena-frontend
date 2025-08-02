@@ -42,5 +42,6 @@ export enum LoadItemStatus {
   LOADING = 'LOADING',
   RUNNING = 'RUNNING',
   DELETING = 'DELETING',
-  QUERYING = 'QUERYING'
+  QUERYING = 'QUERYING',
+  FAILURE = 'FAILURE'
 }

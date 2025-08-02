@@ -27,7 +27,10 @@ export class LoadItem {
   installStatus: string | null = null
   deleteStatus: string | null = null
   private __timer: NodeJS.Timeout | null = null
-  constructor(id: number | false, query: true | LoadItemStatus = true) {
+  private messageI18n: (msg: string, type?: 'success' | 'error') => void
+
+  constructor(id: number | false, query: true | LoadItemStatus = true, messageI18n: (msg: string, type?: 'success' | 'error') => void) {
+    this.messageI18n = messageI18n
     if (id === false) {
       this.status = LoadItemStatus.NONEXISTENT
       return
@@ -52,12 +55,19 @@ export class LoadItem {
         if (status === 'SUCCESS') {
           /** 安装完成 */
           this.status = LoadItemStatus.RUNNING
+          this.messageI18n('Load.Create.Success', 'success')
+        } else if (status === 'FAILURE') {
+          this.status = LoadItemStatus.FAILURE
+          this.messageI18n('Load.Create.Failure')
         } else {
           /** 正在安装 */
           this.status = LoadItemStatus.LOADING
         }
+      } else {
+        this.status = LoadItemStatus.FAILURE
+        this.messageI18n('Load.Create.Failure')
       }
-      if (this.status === LoadItemStatus.RUNNING) return
+      if (this.status === LoadItemStatus.RUNNING || this.status === LoadItemStatus.FAILURE) return
       setTimeout(func, 500)
     }
 
@@ -77,14 +87,21 @@ export class LoadItem {
         if (status === 'SUCCESS') {
           /** 删除完成 */
           this.status = LoadItemStatus.NONEXISTENT
+          this.deleteStatus = null
+          this.messageI18n('Load.Delete.Success', 'success')
+        } else if (status === 'FAILURE') {
+          this.status = LoadItemStatus.FAILURE
+          this.messageI18n('Load.Delete.Failure')
         } else {
           /** 正在删除 */
           this.status = LoadItemStatus.DELETING
         }
       } else {
         console.error(data.message)
+        this.status = LoadItemStatus.FAILURE
+        this.messageI18n('Load.Delete.Failure')
       }
-      if (this.status === LoadItemStatus.NONEXISTENT) return
+      if (this.status === LoadItemStatus.NONEXISTENT || this.status === LoadItemStatus.FAILURE) return
       setTimeout(func, 500)
     }
 
@@ -106,6 +123,7 @@ export class LoadItem {
           if (sData.delete_status === 'SUCCESS') {
             /** 删除完成 */
             this.status = LoadItemStatus.NONEXISTENT
+            this.deleteStatus = null
           } else {
             /** 正在删除 */
             this.status = LoadItemStatus.DELETING

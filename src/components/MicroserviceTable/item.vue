@@ -19,9 +19,8 @@ const microservice = props.microservice
 const madison = Madison.getInstance()
 const canCreate = madison.testbed.canCreate
 
-console.log(canCreate.value, madison.testbed.maxTestbeds.value, madison.testbed.usedTestbeds.value)
-
 function create() {
+  if (!canCreate.value) return
   emits('create', microservice)
 }
 

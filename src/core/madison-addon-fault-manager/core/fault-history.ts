@@ -5,9 +5,9 @@ import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
 import type { RouterPromiseSyncFuncRes } from '@/core/madison/types'
 import type { GetInjectionResForManager, GetInjectionResItem, GetInjectionResItemHistory } from '../types'
 import { getDatesForNextSevenDays, MadisonItemMap, MadisonMapItem, parseTimeToSeconds } from '@/core/madison/utils'
-import { computed, defineComponent, h, reactive, ref, type ComputedRef, type Reactive, type Ref, type WritableComputedRef } from 'vue'
+import { computed, reactive, ref, type ComputedRef, type Reactive, type Ref, type WritableComputedRef } from 'vue'
 import { getFutureInjection, getHistoryInjection, getInjectionResult } from './api'
-import { getDate0000, getSundayOfTheWeek, LoongSchedule, now, ScheduleRenderData, useCalendar, type LoongCalendar } from '@/components/LoongCalendar'
+import { getSundayOfTheWeek, LoongSchedule, now, ScheduleRenderData, useCalendar, type LoongCalendar } from '@/components/LoongCalendar'
 
 export class FaultItem {
   readonly id: string
@@ -183,54 +183,63 @@ export class CalendarFaultsRenderManager extends MadisonAddon {
     this.__namespace.value = namespace
   }
 
-  private startPoller(taskId: string, namespace: string, date: string, interval: number = 400) {
+  private startPoller(taskIds: string[], namespace: string, date: string, prevRes: GetInjectionResForManager[], interval: number = 400) {
     setTimeout(async () => {
-      const res = await getInjectionResult({ taskId })
-      const data = res.data
-      if (data.code === 0) {
-        const set = this.__datesToWaitForLoading.get(namespace) as Set<string>
-        const errSet = this.__datesToWaitForLoadingError.get(namespace) as Set<string>
-        if (data.data.status === 'SUCCESS') {
-          const list: GetInjectionResItem[] | GetInjectionResItemHistory[] = Object.values(data.data.result)
-          // add task 的时候已经将其添加
-          const ofm = this.__data.get(namespace) as OnedayFaultsMap
-          // add task 的时候已经将其添加
-          const of = ofm.get(date) as OnedayFaults
-          const addList: GetInjectionResForManager[] = list.map((item) => {
-            const temp = item as any
-            if (temp.id) {
-              const t = temp as GetInjectionResItem
-              return {
-                id: t.id,
-                name: t.name,
-                timestamp: t.timestamp,
-                duration: parseTimeToSeconds(t.spec.duration),
-                meta: t
+      const res = await Promise.allSettled(taskIds.map(taskId => getInjectionResult({ taskId })))
+      const taskIdSet = new Set(taskIds)
+      const nextRes = [...prevRes]
+      res.forEach((res, i) => {
+        if (res.status !== 'fulfilled') return
+        const data = res.value.data
+        if (data.code === 0) {
+          const set = this.__datesToWaitForLoading.get(namespace) as Set<string>
+          const errSet = this.__datesToWaitForLoadingError.get(namespace) as Set<string>
+          if (data.data.status === 'SUCCESS') {
+            const list: GetInjectionResItem[] | GetInjectionResItemHistory[] = Object.values(data.data.result)
+            const addList: GetInjectionResForManager[] = list.map((item) => {
+              const temp = item as any
+              if (temp.id) {
+                const t = temp as GetInjectionResItem
+                return {
+                  id: t.id,
+                  name: t.name,
+                  timestamp: t.timestamp,
+                  duration: parseTimeToSeconds(t.spec.duration),
+                  meta: t
+                }
+              } else {
+                const t = temp as GetInjectionResItemHistory
+                return {
+                  id: t.id,
+                  name: t.name,
+                  timestamp: t.timestamp,
+                  duration: parseTimeToSeconds(t.spec.duration),
+                  meta: t
+                }
               }
-            } else {
-              const t = temp as GetInjectionResItemHistory
-              return {
-                id: t.id,
-                name: t.name,
-                timestamp: t.timestamp,
-                duration: parseTimeToSeconds(t.spec.duration),
-                meta: t
-              }
-            }
-          })
-          of.addFaults(addList)
-          set.delete(date)
-        } else if (data.data.status === 'FAILURE') {
-          errSet.add(date)
-          set.delete(date)
-        } else {
-          this.startPoller(taskId, namespace, date)
+            })
+            nextRes.push(...addList)
+            set.delete(date)
+            taskIdSet.delete(taskIds[i])
+          } else if (data.data.status === 'FAILURE') {
+            errSet.add(date)
+            taskIdSet.delete(taskIds[i])
+          }
         }
+      })
+      if (taskIdSet.size === 0) {
+        // add task 的时候已经将其添加
+        const ofm = this.__data.get(namespace) as OnedayFaultsMap
+        // add task 的时候已经将其添加
+        const of = ofm.get(date) as OnedayFaults
+        of.addFaults(nextRes)
+      } else {
+        this.startPoller([...taskIdSet], namespace, date, nextRes, interval)
       }
     }, interval)
   }
 
-  addTask(namespace: string, date: string, taskId: string) {
+  addTask(namespace: string, date: string, taskId: string | string[]) {
     if (!this.__data.has(namespace)) this.__data.set(namespace, new OnedayFaultsMap())
     const ofm = this.__data.get(namespace) as OnedayFaultsMap
     if (!ofm.has(date)) ofm.set(date, new OnedayFaults(new Date(date), this.__calendar))
@@ -238,8 +247,7 @@ export class CalendarFaultsRenderManager extends MadisonAddon {
     if (!this.__datesToWaitForLoading.has(namespace)) this.__datesToWaitForLoading.set(namespace, new Set())
     const set = this.__datesToWaitForLoading.get(namespace) as Set<string>
     set.add(date)
-    console.log('startPoller')
-    this.startPoller(taskId, namespace, date)
+    this.startPoller(Array.isArray(taskId) ? taskId : [taskId], namespace, date, [])
   }
 
   logoutCallback(): void {
@@ -285,7 +293,6 @@ export class CalendarFaultsManager extends MadisonAddon {
     set: (value) => {
       let route = this.namespacesRoute.value.find((item) => item[0] === value)
       if (!route) route = this.namespacesRoute.value[0]
-      console.log('namespacesSelected', route)
       this.__madison.routerPromise.router.push(route[2])
     }
   })
@@ -403,7 +410,6 @@ export class CalendarFaultsManager extends MadisonAddon {
   }
 
   private renderTypeChange(type: 'week' | 'date') {
-    console.log('renderTypeChangerenderTypeChange', type)
     this.__madison.routerPromise.router.push({
       name: 'faultinjection',
       query: {
@@ -472,7 +478,7 @@ export class CalendarFaultsManager extends MadisonAddon {
     const current = new Date()
     const lastCurrentDateStr = lastCurrent.toLocaleDateString()
     const currentDateStr = current.toLocaleDateString()
-    const promiseList: Promise<[string, string]>[] = []
+    const promiseList: Promise<[string, string, boolean]>[] = []
     dates.forEach((date) => {
       const dateStr = date.toLocaleDateString()
       if (dateStr !== currentDateStr) {
@@ -499,12 +505,21 @@ export class CalendarFaultsManager extends MadisonAddon {
     })
     this.__current = current
     const res = await Promise.allSettled(promiseList)
+    const todayRes: [string, string, string][] = []
     res.forEach((item) => {
       const status = item.status
       if (status !== 'fulfilled') return
       const value = item.value
+      if (value[2]) {
+        todayRes.push([namespace, value[1], value[0]])
+        return
+      }
       if (forceQuery || !this.__manager.has(namespace, value[1])) this.__manager.addTask(namespace, value[1], value[0])
     })
+    if (todayRes.length > 0) {
+      const taskIds = todayRes.map(v => v[2])
+      this.__manager.addTask(namespace, todayRes[0][1], taskIds)
+    }
   }
 
   private precheck(
@@ -538,26 +553,27 @@ export class CalendarFaultsManager extends MadisonAddon {
     }
   }
 
-  private createPromise(type: 'H' | 'F', date: string, namespace: string, param1: number, param2: number): Promise<[string, string]>
-  private createPromise(type: 'H' | 'F', date: string, namespace: string, param1: Date): Promise<[string, string]>
-  private createPromise(type: 'H' | 'F', date: string, namespace: string, param1: number | Date, param2?: number): Promise<[string, string]> {
+  private createPromise(type: 'H' | 'F', date: string, namespace: string, param1: number, param2: number): Promise<[string, string, boolean]>
+  private createPromise(type: 'H' | 'F', date: string, namespace: string, param1: Date): Promise<[string, string, boolean]>
+  private createPromise(type: 'H' | 'F', date: string, namespace: string, param1: number | Date, param2?: number): Promise<[string, string, boolean]> {
     return (async () => {
       const startTime = typeof param1 === 'number' ? param1 : param1.getTime()
       const endTime = typeof param2 === 'number' ? param2 : (new Date(param1)).getTime() + 24 * 60 * 60 * 1000
       const res = type === 'H' ? await getHistoryInjection({
         startTime:Math.floor(startTime / 1000),
-        endTime: Math.floor(endTime / 1000),
+        endTime: Math.floor(endTime / 1000) - 1,
         namespace
       }) : await getFutureInjection({
         startTime:Math.floor(startTime / 1000),
-        endTime: Math.floor(endTime / 1000),
+        endTime: Math.floor(endTime / 1000) - 1,
         namespace
       })
       const data = res.data
+      const today = new Date()
       if (data.code === 0) {
-        return [data.data.task_id, date]
+        return [data.data.task_id, date, date === today.toLocaleDateString()]
       } else {
-        return ['', date]
+        return ['', date, date === today.toLocaleDateString()]
       }
     })()
   }

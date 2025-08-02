@@ -2,12 +2,14 @@
 import { ElDatePicker, ElRadioGroup, ElRadioButton, ElTooltip, ElIcon } from 'element-plus'
 import { computed, ref } from 'vue'
 import { useCalendar } from './index.ts'
+import { useI18n } from 'vue-i18n'
 const props = defineProps({
   id: {
     type: String,
     required: true
   }
 })
+const { t } = useI18n()
 const calendar = useCalendar(props.id)
 const date = calendar.manager.controllerValue
 const type = calendar.manager.type
@@ -34,11 +36,11 @@ const format = computed(() => {
           placement="bottom"
         >
           <template #content>
-            1. While holding down V, scroll up (down) or press+(-) to vertically zoom in (down) on the calendar
+            {{ t('FaultInjection.Question.Q1') }}
             <br>
-            2. While holding down H, scroll up (down) or press+(-) to horizontally zoom in (down) on the calendar
+            {{ t('FaultInjection.Question.Q2') }}
             <br>
-            3. Drag the scrollbar or scroll wheel, or hold down the calendar and move the mouse to move the calendar
+            {{ t('FaultInjection.Question.Q3') }}
           </template>
           <el-icon size="24">
             <svg

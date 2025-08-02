@@ -19,6 +19,8 @@ const sidebar = computed(() => route.matched.find(
     item.name === 'metrics'
 ) !== undefined)
 const hFull = computed(() => route.matched.find((item) => item.name === 'metrics') === undefined)
+
+const showSelector = computed(() => namespacesAmount.value > 0 || route.query.namespace !== undefined)
 </script>
 
 <template>

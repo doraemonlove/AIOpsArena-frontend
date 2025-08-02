@@ -174,7 +174,6 @@ export class Renderer extends LoongAddon {
       const res = this.__loong.manager.getScheduleRenderData(dates[i])
       if (res === undefined || res === null) continue
       else {
-        // console.log(res[0])
         this.__renderDateLRUCache.set(dates[i].toLocaleDateString(), res)
         needRender = true
       }
@@ -342,7 +341,6 @@ export class Renderer extends LoongAddon {
       this.yScale = res[1]
       this.xOffset = res[2]
       this.yOffset = res[3]
-      // console.log(res)
     } else {
       this.xOffset = 0
       this.yOffset = 0
@@ -363,13 +361,11 @@ export class Renderer extends LoongAddon {
   }
 
   private render() {
-    // console.log('render')
     const ctx = this.ctx
     if (ctx === null) return
     ctx.save()
     ctx.translate(0, 0)
     ctx.clearRect(-100, -100, this.canvasWidth + 100, this.canvasHeight + 100)
-    // console.log(this.canvasWidth)
     // 计算尺寸
     this.calculate()
     if (!this.__fouse) {

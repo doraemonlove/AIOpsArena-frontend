@@ -1,33 +1,45 @@
 import * as echarts from 'echarts'
-import { reactive, watch, type Reactive, type Ref, type WatchHandle } from 'vue'
+import { markRaw, reactive, type Reactive } from 'vue'
 import type { MachineMetricRes } from '../../types'
 import type { MadisonTheme } from '@/core/madison-addon-theme'
 import type { MadisonAddonDataQueryTask } from '@/core/madison/core/addon-base'
-import { LRUCache } from '@/components/LoongCalendar'
+import { LRUCache } from '@/core/madison/utils'
 
 export class MetriMachineDataDetail {
   private __data: MachineMetricRes
   readonly id: string
   private __myChart: echarts.ECharts | null = null
-  private __watchHandleTheme: WatchHandle | null = null
-  private __madisonTheme: Ref<MadisonTheme, MadisonTheme>
+  private __chartElement: HTMLDivElement | null = null
+  private __madisonTheme: MadisonTheme
   private __selectSeries: string = ''
   readonly name: string
+  readonly themeChange = this.__themeChange.bind(this)
+  readonly empty: boolean
 
   windowResizeFunc: any
 
   constructor(
     data: MachineMetricRes,
     id: string,
-    madisonTheme: Ref<MadisonTheme, MadisonTheme>,
+    madisonTheme: MadisonTheme,
     name: string
   ) {
     this.__data = data
+    this.empty = data.length === 0
     this.id = id
     this.__madisonTheme = madisonTheme
     this.name = name
 
     this.windowResizeFunc = this.resizeChart.bind(this)
+  }
+
+  private __themeChange(theme: MadisonTheme) {
+    this.__madisonTheme = theme
+    if (this.__myChart) {
+      this.__myChart.dispose()
+      this.__myChart = null
+    }
+    if (this.__chartElement) this.renderChart(this.__chartElement)
   }
 
   /**
@@ -36,21 +48,14 @@ export class MetriMachineDataDetail {
    * @returns
    */
   render(chartElement: HTMLDivElement): boolean {
-    if (this.__watchHandleTheme) this.__watchHandleTheme.stop()
     this.distory()
+    this.__chartElement = chartElement
     const res = this.renderChart(chartElement)
-    this.__watchHandleTheme = watch(this.__madisonTheme, (newVal) => {
-      if (this.__myChart) {
-        this.__myChart.dispose()
-        this.__myChart = null
-      }
-      this.renderChart(chartElement)
-    })
     return res
   }
 
   private renderChart(element: HTMLDivElement): boolean {
-    const theme = this.__madisonTheme.value
+    const theme = this.__madisonTheme
 
     const data: echarts.SeriesOption[] = this.__data.map((item) => {
       return {
@@ -156,7 +161,14 @@ export class MetriMachineDataDetail {
           return name
         },
         tooltip: {
-          show: true
+          show: true,
+          position: (pos, params, dom, rect, size) => {
+            return {
+              left: size.viewSize[0] / 2 - size.contentSize[0] / 2,
+              bottom: 50
+            }
+          },
+          formatter: '<span style="font-size: 13px">{a}</span>'
         },
         type: 'scroll',
         orient: 'vertical',
@@ -166,7 +178,7 @@ export class MetriMachineDataDetail {
         bottom: 0
       }
     }
-    this.__myChart = echarts.init(element, theme === 'light' ? undefined : 'dark')
+    this.__myChart = markRaw(echarts.init(element, theme === 'light' ? undefined : 'dark'))
     this.__myChart.setOption(option)
 
     this.__myChart.on('mousemove', (params) => {
@@ -190,9 +202,7 @@ export class MetriMachineDataDetail {
     if (this.__myChart) {
       this.__myChart.dispose()
       this.__myChart = null
-    }
-    if (this.__watchHandleTheme) {
-      this.__watchHandleTheme.stop()
+      this.__chartElement = null
     }
   }
 
@@ -225,7 +235,7 @@ export class MetricMachineDatabase {
 
   private deleteCallback(key: string, value: MadisonAddonDataQueryTask<MetriMachineDataDetail>) {
     this.__deleteCallback(key, value)
-    value.data?.distory()
+    // value.data?.distory()
   }
 
   has(key: string): boolean {

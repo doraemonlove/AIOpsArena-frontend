@@ -4,7 +4,9 @@ import { ref } from 'vue'
 import { message } from '@/utils/utils'
 import { Madison } from '@/core/madison'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const email = ref('')
 const code = ref('')
 const password = ref('')
@@ -16,7 +18,7 @@ const router = useRouter()
 
 async function sendEmail() {
   if (!email.value) {
-    message('Please enter your email')
+    message(t('Madison.Visitor.PlsEnterEmail'))
     return
   }
   await madison.register.sendEmail({
@@ -27,11 +29,12 @@ async function sendEmail() {
 
 async function retrieve() {
   if (!password.value || !passwordConfirm.value || !email.value || !code.value) {
-    message('Please fill in all the fields')
+    message(t('Madison.Visitor.Empty'))
     return
   }
   if (password.value !== passwordConfirm.value) {
-    message('Password does not match')
+    message(t('Madison.Visitor.PasswordNotMatch'))
+    return
   }
   const res = await madison.login.retrieve({
     email: email.value,

@@ -58,15 +58,8 @@ const shortcuts = [
       end-placeholder="End date"
       :disabled-date="disabledDate"
       :shortcuts="shortcuts"
+      :clearable="false"
+      @change="manager.createQueryTask()"
     />
-    <el-button
-      v-if="query"
-      :disabled="disable"
-      :loading="disable"
-      :size="size"
-      @click="manager.createQueryTask()"
-    >
-      Search
-    </el-button>
   </div>
 </template>

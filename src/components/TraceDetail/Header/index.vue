@@ -5,14 +5,6 @@ import { computed } from 'vue'
 import { getDuration, getDetails, getDepth, getServices } from '../utils'
 import { message } from '@/utils/utils'
 import { Madison } from '@/core/madison'
-const namespace = Madison.getInstance().namespace.paramNamespace
-const to = computed(() => {
-  if (namespace.value === '') {
-    return { name: 'data' }
-  } else {
-    return { name: 'traces', query: { namespace: namespace.value }}
-  }
-})
 
 const props = defineProps({
   detail: {
@@ -25,6 +17,7 @@ const props = defineProps({
   }
 })
 
+const { t } = useI18n()
 const detail = props.detail
 const details = getDetails(detail)
 const id = props.id
@@ -86,14 +79,16 @@ function copyURL() {
           plain
           size="small"
         >
-          <router-link :to="to">To traces</router-link>
+          <router-link :to="{ name: 'data' }">To data</router-link>
         </el-button>
         <el-button
           plain
           size="small"
           @click="copyURL"
         >
-          <span>Copy URL</span>
+          <span>
+            {{ t('Data.Trace.Copy') }}
+          </span>
         </el-button>
       </div>
     </div>

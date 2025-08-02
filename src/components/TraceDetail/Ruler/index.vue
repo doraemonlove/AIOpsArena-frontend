@@ -15,8 +15,6 @@ const servicesSet = getServices(details)
 const duration = span.duration
 const durations = [0, duration / 4, duration / 2, duration / 4 * 3, duration]
 
-console.log(span, details)
-
 </script>
 
 <template>

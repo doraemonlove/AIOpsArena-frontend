@@ -17,9 +17,9 @@ import type { RouterPromiseSyncFuncRes } from '@/core/madison/types'
 import { ref } from 'vue'
 
 export class Login extends MadisonAddon {
-  static TYPE_KEY = 'LOGIN_TYPE'
-  static LOGIN_KEY = 'LOGIN_K'
-  static LOGIN_PASSWORD = 'LOGIN_P'
+  static readonly TYPE_KEY = 'LOGIN_TYPE'
+  static readonly LOGIN_KEY = 'LOGIN_K'
+  static readonly LOGIN_PASSWORD = 'LOGIN_P'
 
   private __state: LoginState = LoginState.READY
   private __loginPromise: DefPromiseHelper = new DefPromiseHelper()
@@ -42,6 +42,7 @@ export class Login extends MadisonAddon {
     super(madison)
 
     madison.routerPromise.addPrecheck(this.precheck, this)
+    /** 最先运行登录检查 */
     madison.routerPromise.addCheck(this.check, this, -999999)
   }
 
@@ -68,11 +69,11 @@ export class Login extends MadisonAddon {
       ) {
         this.__state = LoginState.FAILURE
         this.__loginPromise.resolve()
-        //
-        // 不提供options原则上仅用于this.check方法
-        // 用于测试自动登录是否成功
-        // 不做message的提示
-        //
+        /**
+         * 不提供options原则上仅用于this.check方法
+         * 用于测试自动登录是否成功
+         * 不做message的提示
+         */
         return false
       }
       const nType = type as 'username' | 'email'
@@ -88,13 +89,14 @@ export class Login extends MadisonAddon {
       options.type === 'username' ? await loginByUsername(options) : await loginByEmail(options)
     const data = res.data
     if (!data || data.code !== 0) {
-      messageUseI18n(data.message, data.code)
+      this.messageI18n('Visitor.Login.Failure')
       this.__state = LoginState.FAILURE
       this.__loginPromise.resolve()
       this.__loginPromise = new DefPromiseHelper()
       return false
     }
-    // set token
+    this.messageI18n('Visitor.Login.Success', 'success')
+    /** set token */
     setToken(data.data.token)
     localSet(Login.TYPE_KEY, options.type)
     localSet(Login.LOGIN_KEY, options.key)
@@ -153,11 +155,9 @@ export class Login extends MadisonAddon {
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): Promise<RouteLocationRaw | void> {
-    if (to.name === 'login' || to.name === 'register') return
+    if (to.name === 'login' || to.name === 'register' || to.name === 'retrieve') return
     if (this.__state === LoginState.READY) {
-      //
-      // 尝试登录
-      //
+      /** 尝试登录 */
       const res = await this.login()
       if (res) return
       this.__pageWantToGo = to
@@ -173,7 +173,11 @@ export class Login extends MadisonAddon {
   async retrieve(options: RetrieveOptions): Promise<boolean> {
     const res = await retrieve(options)
     const data = res.data
-    if (data.code !== 0) messageUseI18n(data.message, data.code)
+    if (data.code !== 0) {
+      this.messageI18n('Visitor.Retrieve.Failure')
+    } else {
+      this.messageI18n('Visitor.Retrieve.Success', 'success')
+    }
     return data.code === 0
   }
 }

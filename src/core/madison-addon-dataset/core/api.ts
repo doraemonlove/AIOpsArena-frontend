@@ -1,5 +1,5 @@
 import { service } from '@/core/madison/utils'
-import type { CreateDatasetOptions, DeleteDatasetOptions, QueryDatasetRes, UpdateDatasetVisibleOptions } from '../types'
+import type { CreateDatasetOptions, DatasetStatus, DeleteDatasetOptions, QueryDatasetRes, UpdateDatasetVisibleOptions } from '../types'
 
 export function createDataset(options: CreateDatasetOptions) {
   return service<{}>({
@@ -41,6 +41,56 @@ export function updateDatasetVisible(options: UpdateDatasetVisibleOptions) {
     params: {
       dataset_id: options.datasetId,
       visible: options.visible
+    }
+  })
+}
+
+export function interruptCollect(options: { datasetId: number }) {
+  return service<{}>({
+    url: '/dataset/interrupt',
+    method: 'get',
+    params: {
+      dataset_id: options.datasetId
+    }
+  })
+}
+
+export function uploadDataset(options: { datasetId: number }) {
+  return service<{}>({
+    url: '/dataset/upload',
+    method: 'get',
+    params: {
+      dataset_id: options.datasetId
+    }
+  })
+}
+
+export function getDownloadURL(options: { datasetId: number }) {
+  return service<{ download_url: string }>({
+    url: '/dataset/getdownloadurl',
+    method: 'get',
+    params: {
+      dataset_id: options.datasetId
+    }
+  })
+}
+
+export function getCollectStatus(options: { datasetId: number }) {
+  return service<{ status: DatasetStatus }>({
+    url: '/dataset/getcollectresult',
+    method: 'get',
+    params: {
+      dataset_id: options.datasetId
+    }
+  })
+}
+
+export function getUploadStatus(options: { datasetId: number }) {
+  return service<{ status: DatasetStatus }>({
+    url: '/dataset/getuploadresult',
+    method: 'get',
+    params: {
+      dataset_id: options.datasetId
     }
   })
 }

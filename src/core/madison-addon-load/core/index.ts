@@ -1,7 +1,7 @@
 import { MadisonAddon } from '@/core/madison/core/addon-base'
 import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
 import { createLoad, deleteLoad, getLoadParams } from './api'
-import { LoadItem, LoadParams } from './load'
+import { LoadParams } from './load'
 import type { CreateLoadOptions } from '../types'
 import type { Madison } from '@/core/madison/core'
 import type { Testbed } from '@/core/madison-addon-testbed/core/testbed'

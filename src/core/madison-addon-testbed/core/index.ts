@@ -7,22 +7,14 @@ import type { CreateTestbedOptions } from '../types'
 import { MadisonAddon } from '@/core/madison/core/addon-base'
 import { Testbed as TestbedRow } from './testbed'
 import { DefPromiseHelper } from '@/core/madison/core/promise-helper'
-import { deepClone, message } from '@/core/madison/utils'
-import { LoadItem } from '@/core/madison-addon-load/core/load'
 
 export class Testbed extends MadisonAddon {
   private __dataIsGot: boolean = false
-  /**
-   * 缓存微服务列表
-   */
+  /** 缓存微服务列表 */
   private __microservices: Microservice[] = []
-  /**
-   * id与实例微服务映射
-   */
+  /** id与实例微服务映射 */
   private __microservicesMap: Map<number, Microservice> = new Map()
-  /**
-   * 缓存testbed列表
-   */
+  /** 缓存testbed列表 */
   private __testbeds: Reactive<Map<number, TestbedRow>> = reactive(new Map())
   /** 检查testbed是否需要创建或者删除的计时器 */
   private __testbedCorDTimer: NodeJS.Timeout | null = null
@@ -76,6 +68,8 @@ export class Testbed extends MadisonAddon {
   }
 
   logoutCallback(): void {
+    if (this.__testbedCorDTimer) clearTimeout(this.__testbedCorDTimer)
+    this.__testbeds.clear()
     this.__dataIsGot = false
     this.__microservices = []
     this.__microservicesMap.clear()
@@ -116,7 +110,7 @@ export class Testbed extends MadisonAddon {
       const m = this.__microservicesMap.get(tData.microservice_type_id)
       if (m === undefined) return
       if (!this.__testbeds.has(tData.id)) {
-        this.__testbeds.set(tData.id, new TestbedRow(tData, m))
+        this.__testbeds.set(tData.id, new TestbedRow(tData, m, this.messageI18n.bind(this)))
       }
       /** 不将创建成功和创建失败的testbed加入轮询 */
       if (tData.install_status !== 'SUCCESS' && tData.install_status !== 'FAILURE') {
@@ -143,7 +137,6 @@ export class Testbed extends MadisonAddon {
   private async getTestbedQuota() {
     const res = await getTestbedQuota()
     const data = res.data
-    console.log('[getTestbedQuota]', data.data)
     this.__maxTestbeds.value = data.data.max_testbeds
     this.__usedTestbeds.value = data.data.used_testbeds
   }
@@ -182,11 +175,12 @@ export class Testbed extends MadisonAddon {
             const testbed = this.__testbeds.get(id)
             if (testbed) testbed.setInstallStatus(status)
             if (status === 'SUCCESS') {
+              this.messageI18n('Testbed.Create.Running', 'success')
               this.__testbedCreatingIds.delete(id)
               refresh = true
             }
             if (status === 'FAILURE') {
-              message(`${id} 创建失败`)
+              this.messageI18n('Testbed.Create.Failure')
               this.__testbedCreatingIds.delete(id)
               refresh = true
             }
@@ -196,13 +190,14 @@ export class Testbed extends MadisonAddon {
             const testbed = this.__testbeds.get(id)
             if (testbed) testbed.setDeleteStatus(status)
             if (status === 'SUCCESS') {
+              this.messageI18n('Testbed.Delete.Finish', 'success')
               this.__testbedDeletingIds.delete(id)
               this.__testbeds.delete(id)
               refresh = true
             }
             if (status === 'FAILURE') {
               this.__testbedDeletingIds.delete(id)
-              message(`${id} 删除失败`)
+              this.messageI18n('Testbed.Delete.Failure')
               refresh = true
             }
           }
@@ -224,10 +219,12 @@ export class Testbed extends MadisonAddon {
     if (this.__usedTestbeds.value >= this.__maxTestbeds.value) return false
     const res = await createTestbed(options)
     const data = res.data
-    // msg
     if (data.code === 0) {
+      this.messageI18n('Testbed.Create.Success', 'success')
       this.stopCorDCheck()
       await this.refresh()
+    } else {
+      this.messageI18n('Testbed.Create.Failure')
     }
     return data.code === 0
   }
@@ -236,8 +233,11 @@ export class Testbed extends MadisonAddon {
     const res = await deleteTestbed({ testbedId })
     const data = res.data
     if (data.code === 0) {
+      this.messageI18n('Testbed.Delete.Success', 'success')
       this.stopCorDCheck()
       await this.refresh()
+    } else {
+      this.messageI18n('Testbed.Delete.Failure')
     }
     return data.code === 0
   }

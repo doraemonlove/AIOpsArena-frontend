@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { useMadison } from '@/core/madison'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const madison = useMadison()
 const calendarFaultsManager = madison.faultManager.calendarFaultsManager
 const renderDataLoaded = calendarFaultsManager.renderDataLoaded
@@ -15,7 +18,7 @@ const datesToWaitForLoadingError = calendarFaultsManager.datesToWaitForLoadingEr
       class="max-w-[240px]"
     >
       <el-alert
-        title="All faults are loaded"
+        :title="t('FaultInjection.AllFaultsAreLoaded')"
         type="success"
         show-icon
         :closable="false"
@@ -26,7 +29,7 @@ const datesToWaitForLoadingError = calendarFaultsManager.datesToWaitForLoadingEr
       class="max-w-[240px] text-nowrap"
     >
       <el-alert
-        :title="`Loading dates: ${datesToWaitForLoading}`"
+        :title="`${t('FaultInjection.LoadingDates')}: ${datesToWaitForLoading}`"
         type="warning"
         show-icon
         :closable="false"
@@ -37,7 +40,7 @@ const datesToWaitForLoadingError = calendarFaultsManager.datesToWaitForLoadingEr
       class="max-w-[240px]"
     >
       <el-alert
-        title="Rendering completed"
+        :title="t('FaultInjection.RenderingCompleted')"
         type="success"
         show-icon
         :closable="false"
@@ -48,7 +51,7 @@ const datesToWaitForLoadingError = calendarFaultsManager.datesToWaitForLoadingEr
       class="max-w-[240px] text-nowrap"
     >
       <el-alert
-        :title="`Error dates: ${datesToWaitForLoadingError}`"
+        :title="`${t('FaultInjection.ErrorDates')}: ${datesToWaitForLoadingError}`"
         type="error"
         show-icon
         :closable="false"

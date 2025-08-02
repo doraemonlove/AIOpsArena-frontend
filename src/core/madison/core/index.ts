@@ -19,17 +19,7 @@ import { Metric } from '@/core/madison-addon-metric'
 import { Load } from '@/core/madison-addon-load'
 import { Dataset } from '@/core/madison-addon-dataset'
 import { FaultManager } from '@/core/madison-addon-fault-manager/core'
-
-const i18nMsg = {
-  'en-US': {
-    Success: 'Success!',
-    RuntimeError: 'RuntimeError'
-  },
-  'zh-CN': {
-    Success: '成功!',
-    RuntimeError: '运行时出错'
-  }
-}
+import { Data } from '@/core/madison-addon-data'
 
 export class Madison extends EventEmitter<MadisonEvents> {
   private static instance: Madison | null = null
@@ -38,24 +28,6 @@ export class Madison extends EventEmitter<MadisonEvents> {
       Madison.instance = new Madison(router)
     }
     return Madison.instance as Madison
-  }
-  static getI18nMessage(): any {
-    /**
-     *
-     * @param obj 确保存在getI18nMessage静态方法
-     */
-    function getAll(obj: any) {
-      obj.forEach((ins: any) => {
-        const msg = ins.getI18nMessage()
-        if (msg) {
-          Object.assign(i18nMsg['en-US'], msg['en-US'])
-          Object.assign(i18nMsg['zh-CN'], msg['zh-CN'])
-        }
-      })
-    }
-    const list: any[] = []
-    getAll(list)
-    return i18nMsg
   }
 
   readonly routerPromise: RouterPromise
@@ -69,6 +41,8 @@ export class Madison extends EventEmitter<MadisonEvents> {
   readonly load: Load
 
   readonly namespace: Namespace
+
+  readonly data: Data
   readonly traces: Traces
   readonly trace: Trace
   readonly logs: Logs
@@ -92,6 +66,8 @@ export class Madison extends EventEmitter<MadisonEvents> {
     this.load = new Load(this)
 
     this.namespace = new Namespace(this)
+
+    this.data = new Data(this)
     this.traces = new Traces(this)
     this.trace = new Trace(this)
     this.logs = new Logs(this)

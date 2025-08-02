@@ -61,11 +61,10 @@ export function messageUseI18n(
   //
   // 未能匹配到msg
   //
-  console.warn('Madison: 未能匹配到msg:', msgId)
+  // console.warn('Madison: 未能匹配到msg:', msgId)
 }
 
 export function isNumber(value: string | string[]) {
-  console.log(value)
   if (Array.isArray(value)) {
     return value.every((v) => !Number.isNaN(Number(v)))
   }

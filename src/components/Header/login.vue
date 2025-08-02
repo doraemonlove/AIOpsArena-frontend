@@ -6,7 +6,7 @@ import LoginIcon from './loginIcon.vue'
   <router-link
     :to="{ name: 'login'}"
     class="cursor-pointer"
-    title="Login"
+    title="Sign in"
   >
     <LoginIcon />
   </router-link>

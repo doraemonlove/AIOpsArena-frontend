@@ -1,10 +1,13 @@
 <script setup lang="ts" generic="DATA, MANAGER extends MadisonAddonDataS2E<DATA>">
 import type { MadisonAddonDataS2E } from '@/core/madison/core/addon-base'
+import { useI18n } from 'vue-i18n'
 const props = defineProps<{
   manager: MANAGER,
   size?: 'large' | 'default' | 'small',
   query?: boolean
 }>()
+
+const { t } = useI18n()
 const manager = props.manager
 const size = props.size || 'default'
 const query = props.query === true

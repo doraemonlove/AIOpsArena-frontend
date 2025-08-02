@@ -27,9 +27,4 @@ export class LRUCache<K, V> extends Map {
       return value
     } else return undefined
   }
-
-  delete(key: any): boolean {
-    if (this.deleteCallback && this.has(key)) this.deleteCallback(key, this.get(key) as V)
-    return super.delete(key)
-  }
 }

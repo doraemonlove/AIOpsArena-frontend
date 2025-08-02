@@ -4,7 +4,7 @@ export default {
   Testbed: 'Testbed',
   FaultInjection: 'FaultInjection',
   Data: 'Data',
-  Dataset: 'DatasetManager',
+  Dataset: 'Dataset',
   Algorithm: 'Algorithm',
   Template: 'Template',
   Evaluation: 'Evaluation',

@@ -5,8 +5,10 @@ import { Madison, MadisonDataQueryTaskStatus } from '@/core/madison'
 import type { FullLogs } from '@/core/madison-addon-logs/core/logs'
 import { formatDate } from '@/core/madison/utils'
 import { computed, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { JsonViewer } from 'vue3-json-viewer'
 
+const { t } = useI18n()
 const madison = Madison.getInstance()
 const logs = madison.logs
 const log = logs.data
@@ -30,7 +32,7 @@ const options = computed<{value: string, label: string}[]>(() => {
   })
   list.unshift({
     value: 'all',
-    label: 'All'
+    label: t('Data.Logs.All')
   })
   return list
 })
@@ -86,11 +88,11 @@ const date = computed(() => {
         <el-input
           v-model="searchValue"
           style="width: 240px;"
-          placeholder="Search msg, log ID, pod name"
+          :placeholder="t('Data.Logs.SearchPrompt')"
         />
       </div>
       <div class="flex items-center gap-2">
-        <span>Filter:</span>
+        <span>{{ t('Data.Logs.Filter') }}</span>
         <el-select
           v-model="selectValue"
           placeholder="Select"

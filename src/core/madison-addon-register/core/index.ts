@@ -19,10 +19,20 @@ export class Register extends MadisonAddon {
   async register(options: RegisterOptions, autoLogin: boolean = true): Promise<boolean> {
     const res = await register(options)
     const data = res.data
-    messageUseI18n(data.message, data.code)
-    //
-    // 是否执行自动登录
-    //
+    if (data.code === 0) {
+      this.messageI18n('Visitor.Register.Success')
+    } else {
+      if (data.message === 'User.register.EmailAlreadyRegistered') {
+        this.messageI18n('Visitor.Register.EmailExisted')
+      } else if (data.message === 'User.register.UsernameAlreadyRegistered') {
+        this.messageI18n('Visitor.Register.UsernameExisted')
+      } else if (data.message === 'User.register.InvalidVerificationCode') {
+        this.messageI18n('Visitor.CodeError')
+      } else {
+        this.messageI18n('Visitor.Register.Failure')
+      }
+    }
+    /** 是否执行自动登录 */
     if (data.code === 0 && autoLogin) {
       return await this.__madison.login.login({
         type: 'username',
@@ -41,11 +51,12 @@ export class Register extends MadisonAddon {
     this.state = SendEmailState.SENDING
     const res = await sendEmail(options)
     const data = res.data
-    messageUseI18n(data.message, data.code)
     if (data.code !== 0) {
       this.state = SendEmailState.READY
+      this.messageI18n('Visitor.CodeFailure')
     } else {
       this.state = SendEmailState.SENDED
+      this.messageI18n('Visitor.CodeSuccess')
     }
 
     return data.code === 0

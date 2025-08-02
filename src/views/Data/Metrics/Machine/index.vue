@@ -1,20 +1,22 @@
 <script setup lang="ts">
 import { Madison } from '@/core/madison'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
+const { t } = useI18n()
 const route = useRoute()
 const madison = Madison.getInstance()
 const namespace = madison.namespace.queryNamespace
 const names = ['metricsmachinenode', 'metricsmachinepod']
 const dict: Record<string, string> = {
-  metricsmachinenode: 'Node',
-  metricsmachinepod: 'Pod'
+  metricsmachinenode: 'Data.Metrics.Node',
+  metricsmachinepod: 'Data.Metrics.Pod'
 }
 </script>
 
 <template>
   <div class="h-full flex">
-    <div class="flex gap-4 justify-center flex-col h-full w-16 pl-2 pr-2 box-border border-r border-light-border dark:border-light-border-dark">
+    <div class="flex gap-4 justify-center items-center flex-col h-full w-16 pl-2 pr-2 box-border border-r border-light-border dark:border-light-border-dark">
       <div
         v-for="name in names"
         :key="name"
@@ -25,7 +27,7 @@ const dict: Record<string, string> = {
           :class="{ '!border-moonlight-500': route.matched.find((item) => item.name === name) !== undefined }"
         >
           <span>
-            {{ dict[name] }}
+            {{ t(dict[name]) }}
           </span>
         </router-link>
       </div>

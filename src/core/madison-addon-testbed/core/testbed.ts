@@ -2,7 +2,6 @@ import { LoadItem } from '@/core/madison-addon-load/core/load'
 import type { TestbedItem } from '../types'
 import type { Microservice } from './microservice'
 import { TestbedService } from './service'
-import { Testbed as TestbedManager } from './index'
 
 export class Testbed {
   readonly id: number
@@ -15,7 +14,6 @@ export class Testbed {
   loadingDisplay: boolean = false
   private __installStatus: string = ''
   private __deleteStatus: string = ''
-  loaded: boolean
   loadIns: LoadItem
 
   private __servicesMap: Map<string, TestbedService> = new Map()
@@ -37,7 +35,7 @@ export class Testbed {
     return new Date(this.createdTime).toLocaleString()
   }
 
-  constructor(data: TestbedItem, microservice: Microservice) {
+  constructor(data: TestbedItem, microservice: Microservice, messageI18n: (msg: string, type?: 'success' | 'error') => void) {
     this.id = data.id
     this.name = data.name
     this.description = data.description
@@ -47,8 +45,7 @@ export class Testbed {
     this.namespace = data.namespace
     this.__installStatus = data.install_status
     this.__deleteStatus = data.delete_status
-    this.loaded = data.is_loaded
-    this.loadIns = new LoadItem(data.load_id === null ? false : data.load_id)
+    this.loadIns = new LoadItem(data.load_id === null ? false : data.load_id, true, messageI18n)
 
     this.__microservice = microservice
 

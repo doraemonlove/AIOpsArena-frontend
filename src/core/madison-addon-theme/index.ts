@@ -22,11 +22,13 @@ export class Theme extends MadisonAddon {
       document.documentElement.classList.add('dark')
       const calendar = useCalendar(CalendarFaultsManager.CAL_KEY)
       calendar.useTheme('dark')
+      this.__madison.emit('theme-change', 'dark')
     }
 
     watch(this.theme, (newValue) => {
       const calendar = useCalendar(CalendarFaultsManager.CAL_KEY)
       newValue = newValue === 'light' ? 'light' : 'dark'
+      this.__madison.emit('theme-change', newValue)
       if (newValue === 'dark') {
         document.documentElement.classList.add('dark')
         calendar.useTheme('dark')

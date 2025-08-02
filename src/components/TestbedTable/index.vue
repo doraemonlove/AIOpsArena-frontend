@@ -4,6 +4,7 @@ import { LoadItemStatus } from '@/core/madison-addon-load'
 import type { Testbed } from '@/core/madison-addon-testbed/core/testbed'
 import { message } from '@/utils/utils'
 import { computed, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 type CreateParamsData = {
   k: number,
@@ -13,6 +14,8 @@ type CreateParamsData = {
   component: string,
   writeable: boolean
 }
+
+const { t } = useI18n()
 
 const madison = Madison.getInstance()
 
@@ -36,7 +39,7 @@ async function loadButtonClick(index: number) {
   if (testbed.loadIns.status === LoadItemStatus.RUNNING) {
     await madison.load.deleteLoad(testbed.loadIns.id, namespace, testbed as Testbed)
     loadButtonDisable.value = false
-  } else if (!testbed.loaded) {
+  } else if (testbed.loadIns.status === LoadItemStatus.NONEXISTENT) {
     if (!madison.load.has(testbed.microserviceTypeId)) {
       message('Search load params')
     }
@@ -98,6 +101,15 @@ async function deleteTestbed(index: number) {
   if (!res) message('Failed to delete testbed')
   loadButtonDisable.value = false
 }
+
+const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'danger'> = {
+  'PENDING': 'warning',
+  'NONEXISTENT': 'info',
+  'RUNNING': 'success',
+  'DELETING': 'warning',
+  'FAILURE': 'danger',
+  'SUCCESS': 'success'
+}
 </script>
 
 <template>
@@ -108,12 +120,12 @@ async function deleteTestbed(index: number) {
         plain
         :disabled="!madison.testbed.canCreate"
       >
-        <router-link :to="{ name: 'microservice'}">增加</router-link>
+        <router-link :to="{ name: 'microservice'}">{{ t('Testbed.Add') }}</router-link>
       </el-button>
       <div class="select-none">
         <el-tooltip
           effect="dark"
-          content="已使用"
+          :content="t('Testbed.Usage')"
           placement="top"
         >
           <span>{{ madison.testbed.usedTestbeds }}</span>
@@ -121,7 +133,7 @@ async function deleteTestbed(index: number) {
         /
         <el-tooltip
           effect="dark"
-          content="上限"
+          :content="t('Testbed.Limit')"
           placement="top"
         >
           <span>{{ madison.testbed.maxTestbeds }}</span>
@@ -134,39 +146,56 @@ async function deleteTestbed(index: number) {
     >
       <el-table-column
         prop="name"
-        label="Name"
+        :label="t('Testbed.Name')"
         width="180"
       />
       <el-table-column
         prop="microservice"
-        label="Microservice"
+        :label="t('Testbed.Microservice')"
       />
       <el-table-column
         prop="description"
-        label="Description"
+        :label="t('Testbed.Description')"
       />
       <el-table-column
         prop="localeCreatedTime"
-        label="Time"
+        :label="t('Testbed.CreateTime')"
       />
       <el-table-column
-        label="Status"
+        :label="t('Testbed.ServiceStatus')"
       >
         <template #default="scope">
-          <span>{{ scope.row.deleteStatus ? scope.row.deleteStatus : scope.row.installStatus }}</span>
+          <el-tag :type="tagType[scope.row.deleteStatus ? scope.row.deleteStatus : scope.row.installStatus]">{{ scope.row.deleteStatus ? scope.row.deleteStatus : scope.row.installStatus }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column
-        label="Load Status"
+        :label="t('Testbed.TrafficStatus')"
       >
         <template #default="scope">
           <div class="flex gap-2">
-            <span>{{ scope.row.loadIns.status }}</span>
-            <span v-if="scope.row.loadIns.status !== LoadItemStatus.NONEXISTENT">{{ scope.row.loadIns.deleteStatus === null ? `Load: ${scope.row.loadIns.installStatus}` : `Delete: ${scope.row.loadIns.deleteStatus}` }}</span>
+            <el-tag :type="tagType[scope.row.loadIns.status]">{{ scope.row.loadIns.status }}</el-tag>
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="Operations">
+      <el-table-column
+        :label="t('Testbed.LoadStatus')"
+      >
+        <template #default="scope">
+          <div class="flex gap-2">
+            <el-tag
+              v-if="scope.row.loadIns.status !== LoadItemStatus.NONEXISTENT"
+              :type="tagType[scope.row.loadIns.deleteStatus === null ? scope.row.loadIns.installStatus : scope.row.loadIns.deleteStatus]"
+            >{{ scope.row.loadIns.deleteStatus === null ? `Load: ${scope.row.loadIns.installStatus}` : `Delete: ${scope.row.loadIns.deleteStatus}` }}</el-tag>
+            <el-tag
+              v-else
+              type="info"
+            >NONEXISTENT</el-tag>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column
+        :label="t('Testbed.Operations')"
+      >
         <template #default="scope">
           <div class="flex gap-2">
             <el-button
@@ -176,7 +205,7 @@ async function deleteTestbed(index: number) {
               plain
               @click="loadButtonClick(scope.$index)"
             >
-              {{ scope.row.loadIns.status !== LoadItemStatus.NONEXISTENT ? 'Stop' : 'Load' }}
+              {{ scope.row.loadIns.status !== LoadItemStatus.NONEXISTENT ? t('Testbed.Stop') : t('Testbed.Load') }}
             </el-button>
             <el-button
               size="small"
@@ -186,7 +215,7 @@ async function deleteTestbed(index: number) {
               :loading="scope.row.loadingDisplay"
               @click="deleteTestbed(scope.$index)"
             >
-              Delete
+              {{ t('Testbed.Delete') }}
             </el-button>
           </div>
         </template>
@@ -194,7 +223,7 @@ async function deleteTestbed(index: number) {
     </el-table>
     <el-dialog
       v-model="loadDialogVisible"
-      title="Create load"
+      :title="t('Testbed.Create.Title')"
       width="240"
       :closed="loadButtonDisable = false"
     >
@@ -218,13 +247,13 @@ async function deleteTestbed(index: number) {
           <el-button
             size="small"
             @click="loadDialogVisible = false; loadButtonDisable = false"
-          >Cancel</el-button>
+          >{{ t('Testbed.Create.Cancel') }}</el-button>
           <el-button
             size="small"
             type="primary"
             @click="createLoad"
           >
-            Confirm
+            {{ t('Testbed.Create.Confirm') }}
           </el-button>
         </div>
       </template>

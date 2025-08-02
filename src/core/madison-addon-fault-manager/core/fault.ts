@@ -32,9 +32,11 @@ export class FaultDetail {
   private __type: Ref<'experiment' | 'schedule'> = ref('experiment')
   private __schedule: Ref<string> = ref('')
   private __clockTime: Ref<'' | Date> = ref('')
+  private t: any
 
   constructor(faultIns: FaultManager, data: FaultParam, auxData: { namespaces: string[]; podList: string[], namespace: string }) {
     this.__faultIns = faultIns
+    this.t = faultIns.t
     this.category = data.category
     this.description = data.description
     this.name = data.name
@@ -260,12 +262,13 @@ export class FaultDetail {
   }
 
   private createElDateTimePicker(content: Ref<Date | ''>, disabledDate?: (date: Date) => boolean) {
+    const t = this.t
     return defineComponent({
       setup() {
         return () => h(ElDatePicker, {
           modelValue: content.value,
           type: 'datetime',
-          placeholder: '选择注入时刻',
+          placeholder: t('FaultInjection.InjectionDialog.SelectInjectionTiming'),
           'onUpdate:modelValue': (value: Date | null) => {
             if (value === null) content.value = new Date()
             else content.value = value
@@ -305,11 +308,12 @@ export class FaultDetail {
   }
 
   private createESSwitch() {
+    const t = this.t
     const radioGroup = this.createElRadioGroup(this.__type, ['experiment', 'schedule'])
-    const experimentComponent = this.createElDateTimePicker(this.__clockTime, (date: Date) => date < new Date())
+    const experimentComponent = this.createElDateTimePicker(this.__clockTime, (date: Date) => date < getDate0000(new Date()))
     const scheduleComponent = this.createElInput(this.__schedule)
-    const experimentComponentCol = this.createControllerRow('Experiment', '单次，选择故障注入时刻', experimentComponent)
-    const scheduleComponentCol = this.createControllerRow('Schedule', '定时，crontab表达式，北京时间，10 5 * * *', scheduleComponent)
+    const experimentComponentCol = this.createControllerRow(t('FaultInjection.InjectionDialog.Experiment'), t('FaultInjection.InjectionDialog.Single'), experimentComponent)
+    const scheduleComponentCol = this.createControllerRow(t('FaultInjection.InjectionDialog.Schedule'), t('FaultInjection.InjectionDialog.Timer'), scheduleComponent)
     const type = this.__type
     return defineComponent({
       name: 'MadisonDetailFaultESSwitch',
@@ -458,24 +462,26 @@ export class FaultDetail {
   }
 
   async confirm(): Promise<[boolean, string]> {
+    const t = this.__faultIns.t
     const values = Array.from(this.__paramsMap.values())
     const params: any = {}
     for (let i = 0; i < values.length; i++) {
       const value = values[i]
       if (typeof value.value.value === 'string') {
-        if (!value.value.value) return [false, `${value.name} can't be empty`]
+        if (!value.value.value) return [false, `${value.name} ${t('Madison.FaultManager.Dialog.Empty')}`]
       } else if (typeof value.value.value === 'number') {
-        if (!value.value.value || value.value.value < 1) return [false, `${value.name} can't be empty`]
+        if (!value.value.value || value.value.value < 1) return [false, `${value.name} ${t('Madison.FaultManager.Dialog.Empty')}`]
       } else if (Array.isArray(value.value.value)) {
-        if (value.value.value.length === 0) return [false, `${value.name} can't be empty`]
+        if (value.value.value.length === 0) return [false, `${value.name} ${t('Madison.FaultManager.Dialog.Empty')}`]
       }
       params[value.name] = value.value.value
     }
     params['namespace'] = this.__auxData.namespace
-    if (this.__type.value === 'experiment' && this.__clockTime.value === '') return [false, 'clockTime can\'t be empty']
-    if (this.__type.value === 'schedule' && this.__schedule.value === '') return [false, 'schedule can\'t be empty']
+    if (this.__type.value === 'experiment' && this.__clockTime.value === '') return [false, `clockTime ${t('Madison.FaultManager.Dialog.Empty')}`]
+    if (this.__type.value === 'schedule' && this.__schedule.value === '') return [false, `schedule ${t('Madison.FaultManager.Dialog.Empty')}`]
     if (this.__type.value === 'experiment') {
       const clockTime = Math.floor((this.__clockTime.value as Date).getTime() / 1000).toString()
+      if (parseInt(clockTime) < Date.now() / 1000) return [false, `clockTime ${t('Madison.FaultManager.Dialog.LessThanNow')}`]
       const options = {
         templateName: this.name,
         faultType: this.type,
@@ -485,6 +491,7 @@ export class FaultDetail {
       try {
         const res = await injectExperiment(options)
         if (res.data.code === 1) {
+          this.__faultIns.messageI18n('FaultManager.Inject.Failure')
           return [false, res.data.message]
         }
       } catch (e) {
@@ -493,6 +500,7 @@ export class FaultDetail {
       const checkDate = new Date(this.__clockTime.value as Date)
       this.__faultIns.calendarFaultsManager.refresh(getDate0000(checkDate))
       this.paramsInit()
+      this.__faultIns.messageI18n('FaultManager.Inject.Success', 'success')
       return [true, '']
     }
     if (this.__type.value === 'schedule') {
@@ -505,6 +513,7 @@ export class FaultDetail {
       try {
         const res = await injectSchedule(options)
         if (res.data.code === 1) {
+          this.__faultIns.messageI18n('FaultManager.Inject.Failure')
           return [false, res.data.message]
         }
       } catch (e) {
@@ -512,6 +521,7 @@ export class FaultDetail {
       }
       this.paramsInit()
       this.__faultIns.calendarFaultsManager.refresh(true)
+      this.__faultIns.messageI18n('FaultManager.Inject.Success', 'success')
       return [true, '']
     }
     return [false, 'Type error']

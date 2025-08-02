@@ -1,69 +1,62 @@
 <script setup lang="ts">
 import { Madison } from '@/core/madison'
 import { useRoute, useRouter, type RouteLocationNormalizedLoadedGeneric } from 'vue-router'
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import card from './card.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const namespace = Madison.getInstance().namespace
 const namespaces = namespace.namespaces
-
-const watchHandle = watch(route, (newV) => {
-  checkRoute(newV)
-})
-
-const checkRoute = (route: RouteLocationNormalizedLoadedGeneric) => {
-  if (route.name === 'data' && !route.query.namespace && namespaces.value.length > 0) {
-    router.push({
-      name: 'data',
-      query: {
-        namespace: namespaces.value[0]
-      }
-    })
-  }
-}
-
-checkRoute(route)
+const showSelector = computed(() => namespaces.value.length > 0 || route.query.namespace !== undefined)
 
 const inputNamespace = ref('')
 
 onBeforeUnmount(() => {
-  watchHandle.stop()
+  // watchHandle.stop()
 })
 
-const cards = [
-  {
-    title: 'Logs',
-    disc: 'Logs',
-    to: 'logs',
-    icon: 'Logs'
-  },
-  {
-    title: 'Metrics',
-    disc: 'Metrics',
-    to: 'metrics',
-    icon: 'Metrics'
-  },
-  {
-    title: 'Traces',
-    disc: 'Traces',
-    to: 'traces',
-    icon: 'Traces'
-  },
-  {
-    title: 'Metric',
-    disc: 'Metric',
-    to: 'metric',
-    icon: 'Metric'
-  },
-  {
-    title: 'Trace',
-    disc: 'Trace',
-    to: 'tracesearch',
-    icon: 'Trace',
-    needNamespace: false
-  }
-]
+const cards: {
+    title: string,
+    disc: string,
+    to: string,
+    icon: string,
+    needNamespace?: boolean
+  }[] = [
+    {
+      title: 'Logs',
+      disc: 'Data.Home.Logs',
+      to: 'logs',
+      icon: 'Logs'
+    },
+    {
+      title: 'Metrics',
+      disc: 'Data.Home.Metrics',
+      to: 'metrics',
+      icon: 'Metrics'
+    },
+    {
+      title: 'Traces',
+      disc: 'Data.Home.Traces',
+      to: 'traces',
+      icon: 'Traces'
+    }
+  // {
+  //   title: 'Metric',
+  //   disc: 'Metric',
+  //   to: 'metric',
+  //   icon: 'Metric'
+  // },
+  // {
+  //   title: 'Trace',
+  //   disc: 'Trace',
+  //   to: 'tracesearch',
+  //   icon: 'Trace',
+  //   needNamespace: false
+  // }
+  ]
 </script>
 
 <template>
@@ -72,25 +65,25 @@ const cards = [
       <div>
         <span class="text-2xl hover:text-moonlight-500 hover:underline">
           <router-link :to="{ name: 'data' }">
-            Select Data
+            {{ t('Data.Sidebar.SelectData') }}
           </router-link>
         </span>
       </div>
       <div>
-        <span class=" text-gray-400">Now Namespace:</span>
+        <span class=" text-gray-400">{{ t('Data.Sidebar.NowNamespace') }}</span>
       </div>
       <div>
         <div class=" text-center text-moonlight-500">{{ namespace.queryNamespace }}</div>
       </div>
       <div>
-        <span class=" text-gray-400">Input Namespace</span>
+        <span class=" text-gray-400">{{ t('Data.Sidebar.InputNamespace') }}</span>
       </div>
       <div class="flex gap-2 items-center">
         <div>
           <el-input
             v-model="inputNamespace"
             size="small"
-            placeholder="Input Namespace"
+            :placeholder="t('Data.Sidebar.InputNamespace')"
           />
         </div>
         <el-button
@@ -102,12 +95,12 @@ const cards = [
             :class="{'pointer-events-none': inputNamespace === ''}"
             :to="{ name: route.name, query: { namespace: inputNamespace || 'unknown' }}"
           >
-            Goto
+            {{ t('Data.Sidebar.Goto') }}
           </router-link>
         </el-button>
       </div>
       <div>
-        <span class=" text-gray-400">Your Namespaces</span>
+        <span class=" text-gray-400">{{ t('Data.Sidebar.YourNamespaces') }}</span>
       </div>
       <div
         v-for="n, i in namespaces"
@@ -122,6 +115,7 @@ const cards = [
       </div>
     </div>
     <div
+      v-if="showSelector"
       style="width: calc(100% - 280px);"
       class="overflow-auto flex flex-wrap justify-center"
     >
@@ -130,10 +124,53 @@ const cards = [
         :key="c.to"
         :title="c.title"
         :to="c.to"
-        :disc="c.disc"
+        :disc="t(c.disc)"
         :icon="c.icon"
         :need-namespace="c.needNamespace !== undefined ? c.needNamespace : true"
       />
+    </div>
+    <div
+      v-else
+      style="width: calc(100% - 280px);"
+      class="overflow-auto flex justify-center items-center flex-col gap-4"
+    >
+      <p class="text-3xl text-red-500">{{ t('Data.Home.NullNamespace') }}</p>
+      <p class="text-xl">
+        {{ t('Data.Home.PLSGoto') }}
+        <router-link
+          class="text-moonlight-500"
+          to="microservice"
+        >
+          {{ t('Data.Home.Microservice') }}
+        </router-link>
+        {{ t('Data.Home.Or') }}
+        <router-link
+          class="text-moonlight-500"
+          to="testbed"
+        >
+          {{ t('Data.Home.Testbed') }}
+        </router-link>
+        {{ t('Data.Home.LastS') }}
+      </p>
+      <p class="text-xl">
+        {{ t('Data.Home.OINS') }}
+        <el-input
+          v-model="inputNamespace"
+          :placeholder="t('Data.Home.InputNamespace')"
+          style="width: 180px;"
+          class="mr-2"
+        />
+        <el-button
+          :disabled="inputNamespace === ''"
+          @click="inputNamespace = ''"
+        >
+          <router-link
+            :class="{'pointer-events-none': inputNamespace === ''}"
+            :to="{ name: route.name, query: { namespace: inputNamespace || 'unknown' }}"
+          >
+            {{ t('Data.Home.Goto') }}
+          </router-link>
+        </el-button></p>
     </div>
   </div>
 </template>

@@ -12,7 +12,7 @@ const navList = [
   ['Nav.FaultInjection', '/fault-injection', 'faultinjection'],
   ['Nav.Data', '/data', 'database'],
   ['Nav.Dataset', '/dataset', 'dataset']
-  // ['Nav.Algorithm', '/algorithm', 'algorithm'],
+  // ['Nav.Algorithm', '/algorithm', 'algorithm']
   // ['Nav.Template', '/template', 'template'],
   // ['Nav.Evaluation', '/evaluation', 'evaluation'],
   // ['Nav.Leaderboard', '/leaderboard', 'leaderboard']

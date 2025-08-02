@@ -34,7 +34,7 @@ const namespace = Madison.getInstance().namespace.queryNamespace
       <span>No instances</span>
     </div>
     <router-link
-      :to="{ name: 'displaymetricmachine', query: {
+      :to="{ name: 'metricmachine', query: {
         namespace: namespace || 'unknown',
         node: node.name,
         type: 'node'

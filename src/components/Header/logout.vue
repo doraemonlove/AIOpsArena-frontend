@@ -14,7 +14,7 @@ function logout() {
 <template>
   <div
     class="cursor-pointer"
-    title="Logout"
+    title="Sign out"
     @click="logout"
   >
     <LogoutIcon />

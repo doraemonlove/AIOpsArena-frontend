@@ -63,12 +63,9 @@ export class Pod extends MadisonAddon {
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): Promise<RouteLocationRaw | void> {
-    if (to.name === 'login' || to.name === 'register') return
-    if (to.name !== 'metricsmachinepod') return
-    //
-    // 已经登录并且没有获取数据
-    //
-    console.log('waiting for login')
+    const can = await this.defNoNSCheck(to, from, 'metricsmachinepod')
+    if (!can) return
+
     await this.__madison.login.waitingForLogin
     if (this.__madison.login.state !== LoginState.LOGGED) return
     const namespace = this.__madison.namespace.queryQueryNamespace.value
@@ -106,7 +103,7 @@ export class Pod extends MadisonAddon {
         id: item.name,
         name: item.name,
         category: i,
-        value: item.calls.length,
+        value: item.instances.length,
         instances: item.instances
       })
       categories.push({ name: item.name })

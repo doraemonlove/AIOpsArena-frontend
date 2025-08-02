@@ -14,9 +14,11 @@ export class Logs extends MadisonAddonDataTMR2T<FullLogs[]> {
     [1 * 10, '10s'],
     [1 * 15, '15s'],
     [1 * 30, '30s'],
-    [1 * 60, '1m']
+    [1 * 60, '1m'],
+    [1 * 60 * 5, '5m'],
+    [1 * 60 * 15, '15m']
   ]
-  readonly MAX_INTERVAL = 1 * 60 * 5
+  readonly MAX_INTERVAL = 1 * 60 * 15
 
   /** Map<namespace-startTime-endTime, MadisonAddonDataQueryTask<FullTrace[]>> */
   private __logsFullData: Reactive<Map<string, MadisonAddonDataQueryTask<FullLogs[]>>> = reactive(

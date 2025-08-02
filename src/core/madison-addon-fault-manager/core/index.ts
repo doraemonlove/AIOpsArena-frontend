@@ -73,8 +73,12 @@ export class FaultManager extends MadisonAddon {
     return faultIns || null
   })
 
+  readonly t: any
+
   constructor(madison: Madison) {
     super(madison)
+
+    this.t = madison.i18n.getT()
 
     this.calendarFaultsManager = new CalendarFaultsManager(madison, this)
 
@@ -175,9 +179,11 @@ export class FaultManager extends MadisonAddon {
     const res = await deleteFault({ faultId })
     const data = res.data
     if (data.code === 0) {
+      this.messageI18n('FaultManager.Delete.Success', 'success')
       this.calendarFaultsManager.refresh(true)
       return true
     }
+    this.messageI18n('FaultManager.Delete.Failure')
     return false
   }
 

@@ -22,7 +22,7 @@ const namespace = Madison.getInstance().namespace.queryNamespace
       >
         <router-link
           class="hover:text-moonlight-500 hover:underline"
-          :to="{ name: 'displaymetricmachine', query: {
+          :to="{ name: 'metricmachine', query: {
             namespace: namespace || 'unknown',
             pod: ins,
             type: 'pod'

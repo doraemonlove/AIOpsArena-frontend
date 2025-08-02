@@ -165,14 +165,14 @@ export class RouterPromise {
     //
     try {
       const resList = await Promise.all(this.__promises)
-      console.log(resList)
+      // console.log(resList)
       for (let i = 0; i < resList.length; i++) {
         const res = resList[i]
         if (res) {
-          console.log(res)
+          // console.log(res)
           this.__promises = []
           next(res)
-          console.log('next')
+          // console.log('next')
           return false
         }
       }
@@ -198,6 +198,7 @@ export class RouterPromise {
     this.__precheckFunctions.forEach((fd) => {
       resList.push(fd.func.call(fd.context, to, from))
     })
+    // console.log('resList', resList)
     return this.syncFuncCheck(resList, next)
   }
 

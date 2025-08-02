@@ -58,6 +58,14 @@ async function login() {
         type="password"
         show-password
       >Password</title-input>
+      <div class="w-full">
+        <router-link
+          to="retrieve"
+          class="text-sm text-moonlight-500 hover:underline"
+        >
+          Forgot password?
+        </router-link>
+      </div>
       <div class="w-full flex justify-between">
         <span>
           <el-button>

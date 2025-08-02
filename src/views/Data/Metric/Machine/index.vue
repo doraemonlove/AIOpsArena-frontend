@@ -16,14 +16,7 @@ const data = machine.data
 <template>
   <div class="relative">
     <MetricMachineSidebar />
-    <!-- <div class="flex justify-center p-4 fixed top-16 w-full">
-      <div class="max-w-screen-lt w-full flex gap-4">
-        <div>
-          <span>Namespace: {{ namesapce }}</span>
-        </div>
-      </div>
-    </div> -->
-    <div class="flex flex-col gap-4 p-4 justify-center">
+    <div class="flex flex-col gap-4 pt-4 justify-center">
       <div
         v-for="d in data"
         :key="d.id"

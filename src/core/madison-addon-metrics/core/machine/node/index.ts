@@ -45,8 +45,8 @@ export class Node extends MadisonAddon {
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): Promise<RouteLocationRaw | void> {
-    if (to.name === 'login' || to.name === 'register') return
-    if (to.name !== 'metricsmachinenode') return
+    const can = await this.defNoNSCheck(to, from, 'metricsmachinenode')
+    if (!can) return
 
     await this.__madison.login.waitingForLogin
     if (this.__madison.login.state !== LoginState.LOGGED) return

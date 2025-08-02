@@ -2,7 +2,10 @@
 import { useMadison } from '@/core/madison'
 import FaultDetail from './faultDetail.vue'
 import { computed, ref, type WritableComputedRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { message } from '@/utils/utils'
+
+const { t } = useI18n()
 const madison = useMadison()
 const faultManager = madison.faultManager
 const { selectedFaultName, selectedFaultIns } = faultManager
@@ -18,10 +21,9 @@ const loading = ref(false)
 async function confirm() {
   const res = await selectedFaultIns.value?.confirm()
   if (res && res[0]) {
-    message('Success', 'success')
     dialogVisible.value = false
-  } else {
-    message(res === undefined ? 'Error' : res[1])
+  } else if (res) {
+    message(res[1])
   }
 }
 
@@ -33,7 +35,7 @@ function beforeClose(done: any) {
 <template>
   <el-dialog
     v-model="dialogVisible"
-    title="注入故障"
+    :title="t('FaultInjection.InjectionDialog.Injection')"
     width="800px"
     :open-delay="300"
     :before-close="beforeClose"
@@ -48,13 +50,15 @@ function beforeClose(done: any) {
         <el-button
           :disabled="loading"
           @click="dialogVisible = false"
-        >Cancel</el-button>
+        >
+          {{ t('FaultInjection.InjectionDialog.Cancel') }}
+        </el-button>
         <el-button
           type="primary"
           :loading="loading"
           @click="confirm"
         >
-          Confirm
+          {{ t('FaultInjection.InjectionDialog.Confirm') }}
         </el-button>
       </span>
     </template>

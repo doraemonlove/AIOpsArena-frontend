@@ -3,6 +3,9 @@ import type { MadisonAddonDataS2E, MadisonAddonDataTMR2T } from '@/core/madison/
 import s2e from './TimeRangePicker/s2e.vue'
 import t2r from './TimeRangePicker/tmr2t.vue'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const props = defineProps<{
   manager: MANAGER1,
   type: 't2r',
@@ -47,7 +50,7 @@ const handleConfirm = () => {
         type="primary"
         plain
         @click="dialogVisible = true"
-      >创建查询任务</el-button>
+      >{{ t('Data.QueryTaskList.CreateQueryTask') }}</el-button>
     </div>
     <div
       v-if="display === 'block'"
@@ -58,12 +61,12 @@ const handleConfirm = () => {
         @click="dialogVisible = true"
       >
         <el-icon :size="128"><DocumentAdd /></el-icon>
-        <span class="text-2xl">创建查询任务</span>
+        <span class="text-2xl">{{ t('Data.QueryTaskList.CreateQueryTask') }}</span>
       </div>
     </div>
     <el-dialog
       v-model="dialogVisible"
-      title="创建查询任务"
+      :title="t('Data.QueryTaskList.CreateQueryTask')"
       width="400"
       append-to-body
     >
@@ -77,13 +80,13 @@ const handleConfirm = () => {
       />
       <template #footer>
         <div class="flex justify-end gap-2">
-          <el-button @click="dialogVisible = false">Cancel</el-button>
+          <el-button @click="dialogVisible = false">{{ t('Data.QueryTaskList.Cancel') }}</el-button>
           <el-button
             type="primary"
             :disabled="disabled"
             @click="handleConfirm"
           >
-            Confirm
+            {{ t('Data.QueryTaskList.Confirm') }}
           </el-button>
         </div>
       </template>

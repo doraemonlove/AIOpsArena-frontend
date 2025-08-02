@@ -7,7 +7,7 @@ import PublicDatasetsList from '@/components/PublicDatasetsList/index.vue'
 <template>
   <Structure>
     <template #main>
-      <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-4 pt-4">
         <PublicDatasetsList />
         <PrivateDatasetsList />
       </div>

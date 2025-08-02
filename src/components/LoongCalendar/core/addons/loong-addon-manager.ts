@@ -107,7 +107,6 @@ export class ScheduleBuckets {
     scheduleData: LoongCalendarManagerScheduleDataLoop,
     data: true | number[] | number
   ): this {
-    // console.log(scheduleData)
     const begin = scheduleData.begin
     const end = scheduleData.end
     if (data === true) {
@@ -127,7 +126,6 @@ export class ScheduleBuckets {
           this.__buckets.set(item, new BPlusTree())
         }
         const bucket = this.__buckets.get(item)
-        // console.log(this.type === ScheduleBucketsType.WEEK, item)
         if (bucket === undefined) {
           console.warn(
             `scheduleBuckets.addSchedule: bucket is undefined, type: ${this.type}, item: ${item}`
@@ -681,7 +679,6 @@ export class Manager extends LoongAddon {
     const date = new Date(key)
     /** 已经按照起始时刻排好序 */
     const timeRangeList = this.__scheduleDatabase.searchTimeRange(date)
-    // console.log(this.__scheduleDatabase)
     if (timeRangeList === undefined) return
     type MeetingColumeData = ScheduleRenderData[] // 最晚结束的排在最前
     type MeetingGroupData = MeetingColumeData[]

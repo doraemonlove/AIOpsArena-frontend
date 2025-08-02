@@ -2,6 +2,9 @@
 import { Madison } from '@/core/madison'
 import { useRoute } from 'vue-router'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const route = useRoute()
 const namespace = Madison.getInstance().namespace
 const namespaces = namespace.namespaces
@@ -14,25 +17,25 @@ const inputNamespace = ref('')
     <div>
       <span class="text-2xl hover:text-moonlight-500 hover:underline">
         <router-link :to="{ name: 'data' }">
-          Select Data
+          {{ t('Data.Sidebar.SelectData') }}
         </router-link>
       </span>
     </div>
     <div>
-      <span class=" text-gray-400">Now Namespace:</span>
+      <span class=" text-gray-400">{{ t('Data.Sidebar.NowNamespace') }}</span>
     </div>
     <div>
       <div class=" text-center text-moonlight-500">{{ namespace.queryNamespace }}</div>
     </div>
     <div>
-      <span class=" text-gray-400">Input Namespace</span>
+      <span class=" text-gray-400">{{ t('Data.Sidebar.InputNamespace') }}</span>
     </div>
     <div class="flex gap-2 items-center">
       <div>
         <el-input
           v-model="inputNamespace"
           size="small"
-          placeholder="Input Namespace"
+          :placeholder="t('Data.Sidebar.InputNamespace')"
         />
       </div>
       <el-button
@@ -44,12 +47,12 @@ const inputNamespace = ref('')
           :class="{'pointer-events-none': inputNamespace === ''}"
           :to="{ name: route.name, query: { namespace: inputNamespace || 'unknown' }}"
         >
-          Goto
+          {{ t('Data.Sidebar.Goto') }}
         </router-link>
       </el-button>
     </div>
     <div>
-      <span class=" text-gray-400">Your Namespaces</span>
+      <span class=" text-gray-400">{{ t('Data.Sidebar.YourNamespaces') }}</span>
     </div>
     <div
       v-for="n, i in namespaces"

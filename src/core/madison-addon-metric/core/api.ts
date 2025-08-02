@@ -35,7 +35,7 @@ export function getNodeList(options: NodeListOptions) {
 }
 
 export function getMachinemetric(options: MachineMetricOptions) {
-  return service<{ taskId: string }>({
+  return service<{ task_id: string }>({
     url: '/monitor/machinemetric',
     method: 'get',
     params: {

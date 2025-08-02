@@ -286,7 +286,7 @@ export class Renderer extends LoongAddon {
       this.yScale = res[1]
       this.xOffset = res[2]
       this.yOffset = res[3]
-      console.log(res)
+      // console.log(res)
     } else {
       this.xOffset = 0
       this.yOffset = 0

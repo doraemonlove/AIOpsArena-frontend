@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { Madison } from '@/core/madison'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import s2e from './s2e.vue'
+import { ArrowLeft } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const firstIn = ref(true)
-setTimeout(() => {
-  firstIn.value = false
-}, 1000)
+const sidebartrigger = ref<HTMLDivElement | null>(null)
 const route = useRoute()
 const madison = Madison.getInstance()
 const machine = madison.metric.machine
@@ -36,6 +37,22 @@ const metricNameData = computed(() => {
 })
 
 const show = ref(false)
+
+onMounted(() => {
+  if (sidebartrigger.value !== null) {
+    sidebartrigger.value.addEventListener('mouseenter', enterTrigger)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (sidebartrigger.value !== null) {
+    sidebartrigger.value.removeEventListener('mouseenter', enterTrigger)
+  }
+})
+
+function enterTrigger() {
+  firstIn.value = false
+}
 
 function getMetricNameStr(metricName: string, path: string) {
   if (path !== '') {
@@ -96,7 +113,10 @@ function addAllAll() {
       class="absolute opacity-[0.8] w-40 h-40 top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 blur-[60px] -z-10 rounded-full pointer-events-none"
       :class="{'!bg-[#FF87C8]': firstIn}"
     />
-    <div class="bg-light-fill dark:bg-light-fill-dark rounded-r-md pt-6 pb-6 pl-[2px] pr-[2px] text-[#FF87C8]  border-t border-r border-b border-light-border dark:border-light-border-dark">
+    <div
+      ref="sidebartrigger"
+      class="bg-light-fill dark:bg-light-fill-dark rounded-r-md pt-6 pb-6 pl-[2px] pr-[2px] text-[#FF87C8]  border-t border-r border-b border-light-border dark:border-light-border-dark"
+    >
       <el-icon>
         <ArrowRightBold />
       </el-icon>
@@ -113,8 +133,15 @@ function addAllAll() {
     >
       <div class="flex flex-col gap-4">
         <div>
+          <router-link :to="{ name: 'data' }">
+            <el-button :icon="ArrowLeft">
+              {{ t('Data.Metric.Back') }}
+            </el-button>
+          </router-link>
+        </div>
+        <div>
           <span class="text-lg">
-            Selected type: {{ type }}
+            {{ t('Data.Metric.SelectedType') }}: {{ type }}
           </span>
         </div>
         <div>
@@ -126,7 +153,7 @@ function addAllAll() {
             <template #reference>
               <div class="w-full cursor-pointer flex justify-between pt-2 pb-2 items-center hover:text-moonlight-500">
                 <span class="text-lg">
-                  Change {{ type }}
+                  {{ t('Data.Metric.Change') }} {{ type }}
                 </span>
                 <el-icon>
                   <ArrowRightBold />
@@ -152,17 +179,7 @@ function addAllAll() {
         </div>
         <div>
           <span class="text-lg">
-            Select time interval
-          </span>
-        </div>
-        <s2e
-          :manager="machine"
-          :query="true"
-          size="small"
-        />
-        <div>
-          <span class="text-lg">
-            Select metric name
+            {{ t('Data.Metric.SelectMetricName') }}
           </span>
         </div>
         <div>
@@ -174,7 +191,7 @@ function addAllAll() {
                 metricName: addAllAll()
               }}"
             >
-              Add all
+              {{ t('Data.Metric.AddAll') }}
             </router-link>
             <router-link
               class="hover:underline flex justify-between items-center text-danger"
@@ -183,7 +200,7 @@ function addAllAll() {
                 metricName: ''
               }}"
             >
-              Remove all
+              {{ t('Data.Metric.RemoveAll') }}
             </router-link>
           </div>
           <el-popover
@@ -213,7 +230,7 @@ function addAllAll() {
                     metricName: addAll(mnd.metricName, route.query.metricName as string || '')
                   }}"
                 >
-                  Add all
+                  {{ t('Data.Metric.AddAll') }}
                 </router-link>
                 <span>
                   {{ mnd.name }}
@@ -225,7 +242,7 @@ function addAllAll() {
                     metricName: removeAll(mnd.metricName, route.query.metricName as string || '')
                   }}"
                 >
-                  Remove all
+                  {{ t('Data.Metric.RemoveAll') }}
                 </router-link>
               </div>
               <router-link
@@ -238,11 +255,21 @@ function addAllAll() {
                   metricName: getMetricNameStr(mn, route.query.metricName as string || '')}}"
               >
                 <span>{{ mn }}</span>
-                <span>{{ selectedMetricName.has(mn) ? 'Remove' : 'Add' }}</span>
+                <span>{{ selectedMetricName.has(mn) ? t('Data.Metric.Remove') : t('Data.Metric.Add') }}</span>
               </router-link>
             </div>
           </el-popover>
         </div>
+        <div>
+          <span class="text-lg">
+            {{ t('Data.Metric.SelectTimeInterval') }}
+          </span>
+        </div>
+        <s2e
+          :manager="machine"
+          :query="true"
+          size="default"
+        />
       </div>
     </el-drawer>
   </div>

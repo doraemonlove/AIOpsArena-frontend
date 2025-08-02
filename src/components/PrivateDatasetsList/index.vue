@@ -2,7 +2,9 @@
 import { Madison } from '@/core/madison'
 import type { DatasetIns } from '@/core/madison-addon-dataset/core/dataset'
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const madison = Madison.getInstance()
 const dataset = madison.dataset
 const list = dataset.privateDatasets
@@ -27,24 +29,30 @@ const options = namespaces.value.map((namespace) => {
 })
 const visible = ref(false)
 const category = computed(() => {
-  return `${log.value ? 'log,' : ''}${metric.value ? 'metric_' + metricStep.value.toString() + ',' : ''}${trace.value ? 'trace' : ''}}`
+  return `${log.value ? 'log,' : ''}${metric.value ? 'metric_' + metricStep.value.toString() + ',' : ''}${trace.value ? 'trace' : ''}`
 })
 const confirmAvailable: ComputedRef<boolean> = computed(() => {
   return !!name.value && timeRange.value !== '' && !!namespace.value
 })
 
 function handleDetail(index: number, row: DatasetIns) {
-  console.log(index, row)
+  // console.log(index, row)
 }
 
 async function handleVisible(index: number, row: DatasetIns) {
-  // await dataset.updateDatasetVisible(row.id, ro ? 'True' : 'False')
+  loading.value = true
+  await dataset.updateDatasetVisible(row.id, row.visible ? 'False' : 'True')
+  loading.value = false
 }
 
 async function handleDelete(index: number, row: DatasetIns) {
   loading.value = true
   await dataset.deleteDataset(row.id)
   loading.value = false
+}
+
+function handleDownload(index: number, row: DatasetIns) {
+  dataset.upload(row.id)
 }
 
 function handleCreate() {
@@ -78,18 +86,28 @@ async function createConfirm() {
   await dataset.createDataset(options)
   dialogVisible.value = false
 }
+
+const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'danger'> = {
+  'PENDING': 'warning',
+  'NONEXISTENT': 'info',
+  'RUNNING': 'success',
+  'DELETING': 'warning',
+  'FAILURE': 'danger',
+  'SUCCESS': 'success'
+}
+
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex gap-4 pl-4 pr-4">
-      <span class="text-xl">Private Datasets</span>
+      <span class="text-xl">{{ t('Dataset.PrivateDatasets') }}</span>
       <el-button
         type="primary"
         plain
         :disabled="loading"
         @click="handleCreate"
-      >Create Dataset</el-button>
+      >{{ t('Dataset.Create.Create') }}</el-button>
     </div>
     <el-table
       :data="list"
@@ -105,47 +123,119 @@ async function createConfirm() {
         label="Description"
       />
       <el-table-column
-        prop="microserive"
-        label="Microserive"
-      />
+        label="CollectStatus"
+      >
+        <template #default="scope">
+          <el-tag :type="tagType[scope.row.collectStatus]">{{ scope.row.collectStatus }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column
-        prop="status"
-        label="Status"
-      />
-      <el-table-column label="Operations">
+        label="UploadStatus"
+      >
+        <template #default="scope">
+          <el-tag :type="tagType[scope.row.uploadStatus]">{{ scope.row.uploadStatus }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="Operations"
+        width="360"
+      >
         <template #default="scope">
           <div class="flex gap-4">
-            <el-button
+            <!-- <el-button
               size="small"
               plain
               :disabled="loading"
               @click="handleDetail(scope.$index, scope.row)"
-            >Detail</el-button>
+            >
+              Detail
+            </el-button> -->
+            <el-popover
+              placement="top"
+              :width="400"
+              trigger="click"
+            >
+              <template #reference>
+                <el-button
+                  size="small"
+                  plain
+                  type="primary"
+                  :disabled="scope.row.collectStatus !== 'SUCCESS'"
+                  @click="handleDownload(scope.$index, scope.row)"
+                >
+                  {{ t('Dataset.Download') }}
+                </el-button>
+              </template>
+              <div class="flex gap-2 flex-col">
+                <div class="flex gap-2">
+                  <span>
+                    Step 1: Upload
+                  </span>
+                  <span :class="{ 'text-[#67C23A]': scope.row.uploadStatus === 'SUCCESS'}">
+                    {{ scope.row.uploading ? 'Uploading' : scope.row.uploadStatus === 'SUCCESS' ? 'SUCCESS' : scope.row.uploadStatus }}
+                  </span>
+                  <el-icon
+                    v-show="scope.row.uploading"
+                    class="is-loading"
+                  >
+                    <Loading />
+                  </el-icon>
+                </div>
+                <div class="flex gap-2">
+                  <span>
+                    Step 2: Get URL
+                  </span>
+                  <span
+                    v-show="scope.row.uploadStatus === 'SUCCESS'"
+                    :class="{ 'text-[#67C23A]': scope.row.getURLing === false && scope.row.url}"
+                  >
+                    {{ scope.row.getURLing ? 'Getting URL...' : scope.row.url ? 'SUCCESS' : 'FAILURE' }}
+                  </span>
+                  <a
+                    v-show="scope.row.url"
+                    class="text-moonlight-500 underline"
+                    :href="scope.row.url"
+                    target="_blank"
+                  >
+                    Click here to download
+                  </a>
+                  <el-icon
+                    v-show="scope.row.getURLing"
+                    class="is-loading"
+                  >
+                    <Loading />
+                  </el-icon>
+                </div>
+              </div>
+            </el-popover>
             <el-button
               size="small"
               plain
               type="primary"
               :disabled="loading"
               @click="handleVisible(scope.$index, scope.row)"
-            >{{ scope.row.visible ? 'Visible' : 'invisible' }}</el-button>
+            >
+              {{ t('Dataset.Now') }}
+              {{ scope.row.visible ? t('Dataset.Visible') : t('Dataset.Invisible') }}
+            </el-button>
             <el-button
               size="small"
               plain
               type="danger"
-              :disabled="loading"
+              :disabled="loading || scope.row.uploading"
               @click="handleDelete(scope.$index, scope.row)"
-            >Delete</el-button>
+            >{{ t('Dataset.Delete') }}</el-button>
           </div>
         </template>
       </el-table-column>
     </el-table>
     <el-dialog
       v-model="dialogVisible"
-      title="Create Dataset"
+      :title="t('Dataset.Create.Create')"
       width="500px"
     >
       <div class="flex flex-col gap-4">
-        <span>Time Range</span>
+        <span>{{ t('Dataset.Create.TimeRange') }}</span>
         <el-date-picker
           v-model="timeRange"
           type="datetimerange"
@@ -155,28 +245,28 @@ async function createConfirm() {
           :disabled-date="disabledDate"
           style="width: 100%;"
         />
-        <span>Dataset Name</span>
+        <span>{{ t('Dataset.Create.DatasetName') }}</span>
         <el-input
           v-model="name"
-          placeholder="Dataset Name"
+          :placeholder="t('Dataset.Create.DatasetName')"
         />
-        <span>Description</span>
+        <span>{{ t('Dataset.Create.Description') }}</span>
         <el-input
           v-model="description"
-          placeholder="Description"
+          :placeholder="t('Dataset.Create.Description')"
         />
-        <span>Category</span>
+        <span>{{ t('Dataset.Create.Category') }}</span>
         <div class="flex flex-col gap-2">
           <el-switch
             v-model="log"
-            active-text="Log"
-            inactive-text="No Log"
+            :active-text="t('Dataset.Create.Log')"
+            :inactive-text="`${t('Dataset.Create.No')} ${t('Dataset.Create.Log')}`"
           />
           <div class="flex gap-4 items-center">
             <el-switch
               v-model="metric"
-              active-text="Metric"
-              inactive-text="No Metric"
+              :active-text="t('Dataset.Create.Metric')"
+              :inactive-text="`${t('Dataset.Create.No')} ${t('Dataset.Create.Metric')}`"
             />
             <el-input-number
               v-model="metricStep"
@@ -185,18 +275,18 @@ async function createConfirm() {
               :disabled="!metric"
               size="small"
             />
-            <span>Metric Step</span>
+            <span>{{ t('Dataset.Create.MetricStep') }}</span>
           </div>
           <el-switch
             v-model="trace"
-            active-text="Trace"
-            inactive-text="No Trace"
+            :active-text="t('Dataset.Create.Trace')"
+            :inactive-text="`${t('Dataset.Create.No')} ${t('Dataset.Create.Trace')}`"
           />
         </div>
-        <span>Namespace</span>
+        <span>{{ t('Dataset.Create.Namespace') }}</span>
         <el-select
           v-model="namespace"
-          placeholder="Select Namespace"
+          :placeholder="t('Dataset.Create.SelectNamespace')"
         >
           <el-option
             v-for="item in options"
@@ -205,11 +295,11 @@ async function createConfirm() {
             :value="item.value"
           />
         </el-select>
-        <span>Visible</span>
+        <span>{{ t('Dataset.Create.Visibility') }}</span>
         <el-switch
           v-model="visible"
-          active-text="Visible"
-          inactive-text="Invisible"
+          :active-text="t('Dataset.Create.Visible')"
+          :inactive-text="t('Dataset.Create.Invisible')"
         />
       </div>
       <template #footer>
@@ -217,13 +307,13 @@ async function createConfirm() {
           <el-button
             :disabled="loading"
             @click="dialogVisible = false"
-          >Cancel</el-button>
+          >{{ t('Dataset.Create.Cancel') }}</el-button>
           <el-button
             :disabled="!confirmAvailable || loading"
             type="primary"
             @click="createConfirm"
           >
-            Confirm
+            {{ t('Dataset.Create.Confirm') }}
           </el-button>
         </div>
       </template>

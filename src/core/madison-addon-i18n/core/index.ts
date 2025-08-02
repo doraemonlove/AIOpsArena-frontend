@@ -20,7 +20,7 @@ export class MadisonI18n extends MadisonAddon {
     this.i18n = createI18n({
       locale: this.__lang.value,
       legacy: false,
-      messages: this.msgInit(messages)
+      messages: messages
     })
     this.__watchFunc = watch(this.__lang, (newLang: MadisonLangs) => {
       this.setLangStr(newLang)
@@ -28,15 +28,6 @@ export class MadisonI18n extends MadisonAddon {
   }
 
   logoutCallback(): void {}
-
-  private msgInit(messages: any): any {
-    const mm = Madison.getI18nMessage()
-    messages['en-US'] = messages['en-US'] || {}
-    messages['zh-CN'] = messages['zh-CN'] || {}
-    messages['en-US'].Madison = mm['en-US'] || {}
-    messages['zh-CN'].Madison = mm['zh-CN'] || {}
-    return messages
-  }
 
   private getLangStr(): MadisonLangs {
     let lang = localGet(MadisonI18n.LANG, 'en-US') || ''

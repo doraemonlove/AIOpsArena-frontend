@@ -4,7 +4,9 @@ import tmr2t from '@/components/TimeRangePicker/tmr2t.vue'
 import { Madison, MadisonDataQueryTaskStatus } from '@/core/madison'
 import { formatDate } from '@/core/madison/utils'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const madison = Madison.getInstance()
 const trace = madison.traces.data
 const traces = madison.traces
@@ -16,15 +18,15 @@ const sortValue = ref('sort1')
 const options = [
   {
     value: 'sort1',
-    label: 'Most Recent'
+    label: 'Data.Traces.MostRecent'
   },
   {
     value: 'sort2',
-    label: 'Longest First'
+    label: 'Data.Traces.LongestFirst'
   },
   {
     value: 'sort3',
-    label: 'Shortest First'
+    label: 'Data.Traces.ShortestFirst'
   }
 ]
 
@@ -73,11 +75,11 @@ const date = computed(() => {
         <el-input
           v-model="searchValue"
           style="width: 240px;"
-          placeholder="Search operation name, trace ID"
+          :placeholder="t('Data.Traces.SearchPrompt')"
         />
       </div>
       <div class="flex items-center gap-2">
-        <span>Sort:</span>
+        <span class="text-nowrap">{{ t('Data.Traces.Sort') }}</span>
         <el-select
           v-model="sortValue"
           placeholder="Select"
@@ -86,7 +88,7 @@ const date = computed(() => {
           <el-option
             v-for="op in options"
             :key="op.value"
-            :label="op.label"
+            :label="t(op.label)"
             :value="op.value"
           />
         </el-select>
@@ -99,7 +101,7 @@ const date = computed(() => {
       <div class="flex items-center">
         <el-button>
           <router-link :to="{ name: 'tracesearch'}">
-            <span>Goto query trace ID</span>
+            <span>{{ t('Data.Traces.GotoQueryTraceID') }}</span>
           </router-link>
         </el-button>
       </div>

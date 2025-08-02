@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { useMadison } from '@/core/madison'
 import MyDialog from './dialog.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const madison = useMadison()
 const faultManager = madison.faultManager
 const { selectedFaultName, selectedFaultIns, cascaderOptions } = faultManager
@@ -28,7 +31,7 @@ const { namespacesSelected, namespacesSelectedOptions } = faultManager.calendarF
     <div>
       <el-cascader
         v-model="selectedFaultName"
-        placeholder="选择需要注入的故障"
+        :placeholder="t('FaultInjection.SelectFault')"
         :options="cascaderOptions"
         :show-all-levels="false"
         style="width: 180px;"

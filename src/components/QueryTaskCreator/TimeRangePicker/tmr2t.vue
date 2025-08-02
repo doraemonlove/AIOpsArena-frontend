@@ -1,11 +1,14 @@
 <script setup lang="ts" generic="DATA, MANAGER extends MadisonAddonDataTMR2T<DATA>">
 import { MadisonAddonDataTMR2T } from '@/core/madison/core/addon-base'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   manager: MANAGER,
   size?: 'large' | 'default' | 'small',
   query?: boolean
 }>()
+
+const { t } = useI18n()
 const manager = props.manager
 const size = props.size || 'default'
 const query = props.query === true
@@ -29,7 +32,7 @@ function disabledDate(date: Date) {
   <div class="flex flex-col items-center gap-4 w-full">
     <div class="flex items-center justify-start w-full">
       <div class="w-28">
-        选择时间范围：
+        {{ t('Data.QueryTaskList.SelectATimeRange') }}
       </div>
       <el-button
         :size="size"
@@ -66,13 +69,13 @@ function disabledDate(date: Date) {
     </div>
     <div class="flex items-center justify-start w-full">
       <div class="w-28">
-        选择结束时刻：
+        {{ t('Data.QueryTaskList.SelectEndTime') }}
       </div>
       <el-date-picker
         v-model="timestamp"
         :size="size"
         type="datetime"
-        placeholder="Select end time point"
+        :placeholder="t('Data.QueryTaskList.SelectEndTime2')"
         :disabled="disable"
         :disabled-date="disabledDate"
         :clearable="false"

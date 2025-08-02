@@ -3,8 +3,6 @@ import { Madison } from '@/core/madison'
 import { ref } from 'vue'
 const namespaces = Madison.getInstance().namespace.namespaces
 const inputNamespace = ref('')
-
-console.log(namespaces.value)
 </script>
 
 <template>

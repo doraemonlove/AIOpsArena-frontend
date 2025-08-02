@@ -1,7 +1,7 @@
 import type { Madison } from '@/core/madison/core'
 import type { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
 import { MadisonAddon } from '@/core/madison/core/addon-base'
-import { ref, type Ref } from 'vue'
+import { ref, type Ref, watch, type WatchHandle } from 'vue'
 import { computed, type ComputedRef } from 'vue'
 import type { RouterPromiseSyncFuncRes } from '@/core/madison/types'
 import { DefPromiseHelper } from '@/core/madison/core/promise-helper'
@@ -84,6 +84,17 @@ export class Namespace extends MadisonAddon {
 
   constructor(madison: Madison) {
     super(madison)
+
+    watch(this.__namespaces, (newVal, oldVal) => {
+      const add = newVal.filter(n => !oldVal.includes(n))
+      const remove = oldVal.filter(n => !newVal.includes(n))
+      add.forEach(n => {
+        this.__checkedNamespace.set(n, true)
+      })
+      remove.forEach(n => {
+        this.__checkedNamespace.delete(n)
+      })
+    })
 
     madison.routerPromise.addCheck(this.check, this, -9999)
     madison.routerPromise.addCheck(this.checkNamespace, this, -9999)

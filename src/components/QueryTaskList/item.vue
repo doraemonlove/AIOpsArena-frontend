@@ -23,7 +23,6 @@ const statusColor = computed<string>(() => {
 
 const handleRemove = (e: MouseEvent) => {
   e.preventDefault()
-  console.log(task.id)
   manager.removeTask(task.id)
 }
 </script>
