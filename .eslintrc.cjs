@@ -25,6 +25,7 @@ module.exports = {
     //     'allowFirstLine': false
     //   }
     // }],
+    'vue/one-component-per-file': 'off', // 我希望在一个ts文件中可以创建多个组件
     'vue/valid-attribute-name': 'off',
     'vue/valid-model-definition': 'off',
     'vue/no-v-model-argument': 'off',
@@ -123,10 +124,11 @@ module.exports = {
     'no-class-assign': 2,
     'no-cond-assign': 2,
     'no-const-assign': 2,
+    'no-constant-condition': 1,
     'no-control-regex': 0,
     'no-delete-var': 2,
     'no-dupe-args': 2,
-    'no-dupe-class-members': 2,
+    'no-dupe-class-members': 0, // 解决类函数重载
     'no-dupe-keys': 2,
     'no-duplicate-case': 2,
     'no-empty-character-class': 2,

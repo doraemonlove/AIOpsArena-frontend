@@ -26,7 +26,6 @@ onMounted(() => {
   // mapTree.add(200, 200, 50, 50)
   // mapTree.add(400, 400, 10, 10)
   mapTree.draw()
-  console.log(Date.now() - from)
 })
 
 function addNode() {

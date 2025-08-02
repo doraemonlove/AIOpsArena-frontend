@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    @apply bg-bg dark:bg-bg-dark;
+    @apply text-primary dark:text-primary-dark;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-base-border dark:bg-base-border-dark;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    @apply bg-darker-border dark:bg-darker-border-dark;
+  }
+
+  ::-webkit-scrollbar-corner {
+    @apply bg-base-border dark:bg-base-border-dark;
+  }
+}
+
+@layer components {
+  .link {
+    @apply text-primary dark:text-primary-dark;
+    text-decoration: none;
+  }
+
+  .link:active {
+    text-decoration: none;
+  }
+
+  .link:hover {
+    @apply text-moonlight-500;
+  }
+
+  .border-button {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+
+  .border-button--small {
+    border-radius: 5px;
+  }
+
+  .border-button-keep {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    box-sizing: border-box;
+    box-shadow: var(--bl-shadow-02);
+    @apply bg-dark-fill dark:bg-dark-fill-dark;
+    @apply border-base-border dark:border-base-border-dark;
+  }
+
+  .border-button:hover {
+    box-shadow: var(--bl-shadow-02);
+    @apply bg-dark-fill dark:bg-dark-fill-dark;
+    @apply border-base-border dark:border-base-border-dark;
+  }
+
+  .border-selector {
+  }
+}
