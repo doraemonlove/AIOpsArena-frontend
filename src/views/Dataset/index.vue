@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Structure from '@/components/Structrue/index.vue'
+import Structure from '@/components/Structure/index.vue'
 import PrivateDatasetsList from '@/components/PrivateDatasetsList/index.vue'
 import PublicDatasetsList from '@/components/PublicDatasetsList/index.vue'
 </script>

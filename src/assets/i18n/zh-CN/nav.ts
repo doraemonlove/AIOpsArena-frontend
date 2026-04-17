@@ -6,7 +6,9 @@ export default {
   Data: '数据',
   Dataset: '数据集',
   Algorithm: '算法',
+  TrainRuns: '训练',
+  TestRuns: '推理',
   Template: '模板',
   Evaluation: '评估',
-  Leaderboard: 'Leaderboard'
+  Leaderboard: '评测'
 }

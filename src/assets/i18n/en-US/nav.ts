@@ -6,6 +6,8 @@ export default {
   Data: 'Data',
   Dataset: 'Dataset',
   Algorithm: 'Algorithm',
+  TrainRuns: 'Train Runs',
+  TestRuns: 'Test Runs',
   Template: 'Template',
   Evaluation: 'Evaluation',
   Leaderboard: 'Leaderboard'

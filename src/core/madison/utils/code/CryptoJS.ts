@@ -1,6 +1,6 @@
 import CryptoJS from 'crypto-js'
-import { AES_KEY } from './config'
 
+const AES_KEY = 'a1b2c3d4e5f6g7h8'
 /**
  * 随机生成指定数量的16进制key
  * @param {int} num key长度

@@ -11,11 +11,11 @@ const navList = [
   ['Nav.Testbed', '/testbed', 'testbed'],
   ['Nav.FaultInjection', '/fault-injection', 'faultinjection'],
   ['Nav.Data', '/data', 'database'],
-  ['Nav.Dataset', '/dataset', 'dataset']
-  // ['Nav.Algorithm', '/algorithm', 'algorithm']
-  // ['Nav.Template', '/template', 'template'],
-  // ['Nav.Evaluation', '/evaluation', 'evaluation'],
-  // ['Nav.Leaderboard', '/leaderboard', 'leaderboard']
+  ['Nav.Dataset', '/dataset', 'dataset'],
+  ['Nav.Algorithm', '/algorithm', 'algorithm'],
+  ['Nav.TrainRuns', '/train-runs', 'trainruns'],
+  ['Nav.TestRuns', '/test-runs', 'testruns'],
+  ['Nav.Leaderboard', '/leaderboard', 'leaderboard']
 ]
 </script>
 

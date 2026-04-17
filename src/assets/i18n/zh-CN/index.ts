@@ -4,6 +4,10 @@ import Testbed from './testbed'
 import Data from './data'
 import FaultInjection from './fault-injection'
 import Dataset from './dataset'
+import Algorithm from './algorithm'
+import TrainRuns from './train-runs'
+import TestRuns from './test-runs'
+import Leaderboard from './leaderboard'
 import Madison from './Madison'
 
 export default {
@@ -13,5 +17,9 @@ export default {
   Data,
   FaultInjection,
   Dataset,
+  Algorithm,
+  TrainRuns,
+  TestRuns,
+  Leaderboard,
   Madison
 }

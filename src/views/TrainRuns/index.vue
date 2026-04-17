@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import Structure from '@/components/Structure/index.vue'
-import MicroserviceTable from '@/components/MicroserviceTable/index.vue'
+import TrainRuns from '@/components/TrainRuns/index.vue'
 </script>
 
 <template>
   <Structure>
     <template #main>
-      <MicroserviceTable />
+      <TrainRuns />
     </template>
   </Structure>
 </template>

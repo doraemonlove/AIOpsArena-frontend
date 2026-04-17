@@ -1,6 +1,6 @@
 import { MadisonAddon } from '@/core/madison/core/addon-base'
 
-export class AlgorithmManager extends MadisonAddon {
+export class Leaderboard extends MadisonAddon {
   logoutCallback(): void {}
 }
 

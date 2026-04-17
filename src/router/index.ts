@@ -155,34 +155,26 @@ const router = createRouter({
       name: 'dataset',
       component: () => import('../views/Dataset/index.vue')
     },
-    // {
-    //   path: '/algorithm',
-    //   name: 'algorithm',
-    //   component: () => import('../views/test.vue')
-    // },
-    // {
-    //   path: '/template',
-    //   name: 'template',
-    //   component: () => import('../views/AboutView.vue')
-    // },
-    // {
-    //   path: '/evaluation',
-    //   name: 'evaluation',
-    //   component: () => import('../views/AboutView.vue')
-    // },
-    // {
-    //   path: '/leaderboard',
-    //   name: 'leaderboard',
-    //   component: () => import('../views/HomeView.vue')
-    // },
-    // {
-    //   path: '/about',
-    //   name: 'about',
-    //   // route level code-splitting
-    //   // this generates a separate chunk (About.[hash].js) for this route
-    //   // which is lazy-loaded when the route is visited.
-    //   component: () => import('../views/AboutView.vue')
-    // },
+    {
+      path: '/algorithm',
+      name: 'algorithm',
+      component: () => import('../views/Algorithm/index.vue')
+    },
+    {
+      path: '/train-runs',
+      name: 'trainruns',
+      component: () => import('../views/TrainRuns/index.vue')
+    },
+    {
+      path: '/test-runs',
+      name: 'testruns',
+      component: () => import('../views/Algorithm/Test/index.vue')
+    },
+    {
+      path: '/leaderboard',
+      name: 'leaderboard',
+      component: () => import('../views/Leaderboard/index.vue')
+    },
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',

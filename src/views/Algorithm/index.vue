@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import Structure from '@/components/Structure/index.vue'
-import MicroserviceTable from '@/components/MicroserviceTable/index.vue'
+import AlgorithmManagement from '@/components/AlgorithmManagement/index.vue'
 </script>
 
 <template>
   <Structure>
     <template #main>
-      <MicroserviceTable />
+      <AlgorithmManagement />
     </template>
   </Structure>
 </template>

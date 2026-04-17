@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Structure from '@/components/Structrue/index.vue'
+import Structure from '@/components/Structure/index.vue'
 import LoongCalendar from '@/components/LoongCalendar/index.vue'
 import { CalendarFaultsManager } from '@/core/madison-addon-fault-manager/core/fault-history'
 import FaultCalendarPrompt from '@/components/FaultCalendarPrompt/index.vue'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Structure from '@/components/Structrue/index.vue'
+import Structure from '@/components/Structure/index.vue'
 import DatasetSidebar from '@/components/DatasetSidebar/index.vue'
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'

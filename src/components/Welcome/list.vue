@@ -5,6 +5,5 @@ import microservice from './items/microservice.vue'
 <template>
   <div class="flex flex-col gap-10 items-center">
     <microservice />
-    <microservice />
   </div>
 </template>

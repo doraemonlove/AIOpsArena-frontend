@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Structure from '@/components/Structrue/index.vue'
+import Structure from '@/components/Structure/index.vue'
 import Welcome from '@/components/Welcome/index.vue'
 </script>
 
