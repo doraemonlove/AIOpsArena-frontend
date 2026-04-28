@@ -11,3 +11,13 @@ declare module '*.vue' {
 declare module 'nprogress'
 declare module 'crypto-js'
 declare module 'vue3-json-viewer'
+
+interface ImportMetaEnv {
+  readonly VITE_BASE_URL?: string
+  readonly VITE_PLATFORM_ASSISTANT_BACKEND_BASE_URL?: string
+  readonly VITE_PLATFORM_ASSISTANT_AGENT_SERVER_BASE_URL?: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}

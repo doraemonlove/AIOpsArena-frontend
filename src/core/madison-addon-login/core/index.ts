@@ -9,7 +9,8 @@ import {
   localGet,
   localSet,
   messageUseI18n,
-  removeToken
+  removeToken,
+  localDel
 } from '@/core/madison/utils'
 import { MadisonAddon } from '@/core/madison/core/addon-base'
 import { DefPromiseHelper } from '@/core/madison/core/promise-helper'
@@ -20,6 +21,7 @@ export class Login extends MadisonAddon {
   static readonly TYPE_KEY = 'LOGIN_TYPE'
   static readonly LOGIN_KEY = 'LOGIN_K'
   static readonly LOGIN_PASSWORD = 'LOGIN_P'
+  static readonly USER_ID_KEY = 'LOGIN_UID'
 
   private __state: LoginState = LoginState.READY
   private __loginPromise: DefPromiseHelper = new DefPromiseHelper()
@@ -101,6 +103,13 @@ export class Login extends MadisonAddon {
     localSet(Login.TYPE_KEY, options.type)
     localSet(Login.LOGIN_KEY, options.key)
     localSet(Login.LOGIN_PASSWORD, passwordEncrypted)
+    const userId = this.resolveUserIdFromToken(data.data.token)
+    const normalizedUserId = this.normalizeUserId(userId || options.key)
+    if (normalizedUserId) {
+      localSet(Login.USER_ID_KEY, normalizedUserId)
+    } else {
+      localDel(Login.USER_ID_KEY)
+    }
     this.__state = LoginState.LOGGED
     this.__isLogin.value = true
     this.__loginPromise.resolve()
@@ -131,6 +140,7 @@ export class Login extends MadisonAddon {
       removeToken()
       localSet(Login.LOGIN_KEY, '')
       localSet(Login.LOGIN_PASSWORD, '')
+      localDel(Login.USER_ID_KEY)
       this.__madison.emit('logout')
       return true
     }
@@ -179,5 +189,32 @@ export class Login extends MadisonAddon {
       this.messageI18n('Visitor.Retrieve.Success', 'success')
     }
     return data.code === 0
+  }
+
+  private resolveUserIdFromToken(token: string): string {
+    if (!token || token.split('.').length < 2) return ''
+
+    try {
+      const payload = token.split('.')[1]
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+      const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
+      const decoded = decodeURIComponent(
+        atob(padded)
+          .split('')
+          .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
+          .join('')
+      )
+      const data = JSON.parse(decoded) as Record<string, unknown>
+      const candidate = data.user_id || data.userId || data.uid || data.id || data.sub
+      return this.normalizeUserId(candidate)
+    } catch (_) {
+      return ''
+    }
+  }
+
+  private normalizeUserId(value: unknown): string {
+    if (value === undefined || value === null) return ''
+    const normalized = String(value).trim()
+    return /^\d+$/.test(normalized) ? normalized : ''
   }
 }

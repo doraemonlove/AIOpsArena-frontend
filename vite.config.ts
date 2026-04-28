@@ -10,6 +10,18 @@ export default defineConfig({
     vue(),
     vueDevTools()
   ],
+  server: {
+    proxy: {
+      '/agent-api': {
+        target: 'http://localhost:8004',
+        changeOrigin: true,
+        headers: {
+          Origin: 'http://localhost:8004'
+        },
+        rewrite: (path) => path.replace(/^\/agent-api/, '')
+      }
+    }
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
