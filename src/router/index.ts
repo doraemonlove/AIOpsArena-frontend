@@ -16,11 +16,6 @@ const router = createRouter({
       component: () => import('../views/Home/index.vue')
     },
     {
-      path: '/Microservice',
-      name: 'microservice',
-      component: () => import('../views/Microservice/index.vue')
-    },
-    {
       path: '/visitor',
       name: 'visitor',
       component: () => import('../views/Visitor/index.vue'),

@@ -39,7 +39,7 @@ export default {
     Testbed: 'Testbed',
     Or: 'or',
     PLSGoto: 'Please goto',
-    LastS: 'to create a microservice system to obtain the namespace;',
+    LastS: 'to create a testbed and obtain the namespace;',
     OINS: 'Or input namespace:',
     InputNamespace: 'Input Namespace',
     Goto: 'Goto'

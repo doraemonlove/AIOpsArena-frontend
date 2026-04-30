@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import microservice from './items/microservice.vue'
+import testbed from './items/testbed.vue'
 </script>
 
 <template>
   <div class="flex flex-col gap-10 items-center">
-    <microservice />
+    <testbed />
   </div>
 </template>

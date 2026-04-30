@@ -10,5 +10,9 @@ export default {
   TestRuns: '推理',
   Template: '模板',
   Evaluation: '评估',
-  Leaderboard: '评测'
+  Leaderboard: '评测',
+  ToggleLanguage: '切换语言',
+  ToggleTheme: '切换主题',
+  SignIn: '登录',
+  SignOut: '退出登录'
 }

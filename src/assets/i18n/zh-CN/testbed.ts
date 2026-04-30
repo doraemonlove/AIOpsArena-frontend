@@ -1,5 +1,6 @@
 export default {
   Add: '增加',
+  SelectMicroserviceTitle: '选择微服务模板',
   Name: '名字',
   Microservice: '微服务',
   Description: '描述',
@@ -17,6 +18,12 @@ export default {
     Title: '创建注入',
     Cancel: '取消',
     Confirm: '确定'
+  },
+  Page: {
+    MicroserviceTitle: '微服务',
+    MicroserviceDescription: '查看可用的微服务模板。',
+    TestbedTitle: '试验台',
+    TestbedDescription: '管理已有试验台，并通过新增弹窗创建新的试验台。'
   }
 
 }

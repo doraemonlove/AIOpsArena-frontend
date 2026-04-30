@@ -1,20 +1,72 @@
 import type { Ref } from 'vue'
 
 export interface FaultParam {
+  templateName?: string
   name: string
   category: string
   type: string
   description: string
-  params: Record<
-    string,
-    {
-      type: string
-      description: string
-    }
-  >
+  params: Record<string, FaultParamField>
 }
 
-export type GetFaultParamsRes = Record<string, FaultParam>
+export interface FaultParamOption {
+  label: string
+  value: string
+}
+
+export interface FaultParamField {
+  type: string
+  description: string
+  required?: boolean
+  defaultValue?: string | number | boolean | string[]
+  example?: string | number | boolean | string[]
+  options?: FaultParamOption[]
+  enumValues?: Array<string | number | boolean>
+  specialValues?: Array<string | number | boolean>
+}
+
+export interface FaultTypeListItem {
+  templateName: string
+  name: string
+  category: string
+  type: string
+  description: string
+  requiredParams: string[]
+  targetCandidates: string[]
+}
+
+export interface FaultSchemaTypeItem {
+  template_name: string
+  name: string
+  category: string
+  type: string
+  description: string
+  required_params: string[]
+  target_candidates: string[]
+}
+
+export interface FaultSchemaParam {
+  type?: string
+  description?: string
+  required?: boolean
+  default_value?: string | number | boolean | string[]
+  example?: string | number | boolean | string[]
+  candidates?: Array<string | number | boolean | { label?: string; value?: string | number | boolean; name?: string }>
+  options?: Array<string | number | boolean | { label?: string; value?: string | number | boolean; name?: string }>
+  enum_values?: Array<string | number | boolean>
+  special_values?: Array<string | number | boolean>
+}
+
+export interface FaultSchema {
+  template_name: string
+  name?: string
+  category?: string
+  type?: string
+  description?: string
+  required_params?: string[]
+  target_candidates?: string[]
+  params?: Record<string, FaultSchemaParam>
+}
 
 export interface InjectExperimentOptions {
   templateName: string
@@ -119,7 +171,7 @@ export type ParamsMapValue =
   | {
       value: Ref<string>
       component: 'el-select'
-      name: 'namespace'
+      name: string
       type: 'string'
       meta: any
       description: string
@@ -138,6 +190,14 @@ export type ParamsMapValue =
       component: 'el-input-number'
       name: string
       type: 'number'
+      meta: any
+      description: string
+    }
+  | {
+      value: Ref<boolean>
+      component: 'el-switch'
+      name: string
+      type: 'boolean'
       meta: any
       description: string
     }

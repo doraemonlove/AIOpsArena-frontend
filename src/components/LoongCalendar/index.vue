@@ -23,8 +23,14 @@ onBeforeUnmount(() => {
   <div style="width: 100%; height: 100%;">
     <div style="height: 60px;">
       <controller :id="id">
+        <template #headerLeft>
+          <slot name="headerLeft" />
+        </template>
         <template #headerCenter>
           <slot name="headerCenter" />
+        </template>
+        <template #headerRight>
+          <slot name="headerRight" />
         </template>
         <template #headerRightHead>
           <slot name="headerRightHead" />
@@ -37,8 +43,6 @@ onBeforeUnmount(() => {
     <div style="height: calc(100% - 60px); position: relative;">
       <canvas
         :id="id"
-        width="1000"
-        height="1000"
         style="width: 100%; height: 100%;"
       />
       <div style="position: absolute; top: 0; left: 0; pointer-events: none; user-select: none; width: 100%; height: 100%; overflow: hidden;">

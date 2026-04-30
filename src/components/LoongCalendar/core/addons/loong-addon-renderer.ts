@@ -13,6 +13,7 @@ import { TimeRenderer } from './renderers/time-renderer'
 export class Renderer extends LoongAddon {
   private __canvas: HTMLCanvasElement | null = null
   private __ctx: CanvasRenderingContext2D | null = null
+  private __resizeObserver: ResizeObserver | null = null
 
   get ctx() {
     return this.__ctx
@@ -135,12 +136,21 @@ export class Renderer extends LoongAddon {
     const canvas = document.getElementById(this.__loong.id) as HTMLCanvasElement
     this.__canvas = canvas
     this.__ctx = canvas.getContext('2d')
+    this.__resizeObserver?.disconnect()
+    if (canvas.parentElement) {
+      this.__resizeObserver = new ResizeObserver(() => {
+        this.resize()
+      })
+      this.__resizeObserver.observe(canvas.parentElement)
+    }
     this.resize()
   }
 
   private canvasOffline() {
     this.__canvas = null
     this.__ctx = null
+    this.__resizeObserver?.disconnect()
+    this.__resizeObserver = null
   }
 
   private themeChange() {
@@ -193,8 +203,9 @@ export class Renderer extends LoongAddon {
     this.canvasWidth = this.__canvas.clientWidth
     this.canvasHeight = this.__canvas.clientHeight
     const dpr = window.devicePixelRatio || 1 // 获取设备像素比
-    this.__canvas.width = this.canvasWidth * dpr
-    this.__canvas.height = this.canvasHeight * dpr
+    this.__canvas.width = Math.floor(this.canvasWidth * dpr)
+    this.__canvas.height = Math.floor(this.canvasHeight * dpr)
+    this.__ctx.setTransform(1, 0, 0, 1, 0, 0)
     this.__ctx.scale(dpr, dpr)
     /** 需要重新渲染 */
     this.__needRender = true
@@ -415,5 +426,8 @@ export class Renderer extends LoongAddon {
     this.calendarRB = [canvasWidth - this.scrollbarRenderer.size, canvasHeight - this.scrollbarRenderer.size]
   }
 
-  protected destroy(): void {}
+  protected destroy(): void {
+    this.__resizeObserver?.disconnect()
+    this.__resizeObserver = null
+  }
 }

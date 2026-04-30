@@ -1,4 +1,19 @@
 export default {
+  Namespace: 'Namespace',
+  FaultLibrary: 'Faults',
+  FaultCategory: 'Category',
+  AvailableFaults: 'Available faults',
+  NoFaultsInCategory: 'No injectable faults in this category',
+  ThisWeek: 'This week',
+  WeekView: 'Week view',
+  Calendar: {
+    Date: 'Date',
+    Week: 'Week'
+  },
+  CategoryOptions: {
+    pod: 'Pod',
+    service: 'Service'
+  },
   InjectionDialog: {
     Experiment: 'Experiment',
     Schedule: 'Schedule',
@@ -37,6 +52,6 @@ export default {
     Testbed: 'Testbed',
     Or: 'or',
     PLSGoto: 'Please goto',
-    LastS: 'to create a microservice system to obtain the namespace'
+    LastS: 'to create a testbed and obtain the namespace'
   }
 }

@@ -8,6 +8,7 @@ import Algorithm from './algorithm'
 import TrainRuns from './train-runs'
 import TestRuns from './test-runs'
 import Leaderboard from './leaderboard'
+import PlatformAssistant from './platform-assistant'
 import Madison from './Madison'
 
 export default {
@@ -21,5 +22,6 @@ export default {
   TrainRuns,
   TestRuns,
   Leaderboard,
+  PlatformAssistant,
   Madison
 }

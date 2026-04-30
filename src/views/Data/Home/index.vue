@@ -139,13 +139,6 @@ const cards: {
         {{ t('Data.Home.PLSGoto') }}
         <router-link
           class="text-moonlight-500"
-          to="microservice"
-        >
-          {{ t('Data.Home.Microservice') }}
-        </router-link>
-        {{ t('Data.Home.Or') }}
-        <router-link
-          class="text-moonlight-500"
           to="testbed"
         >
           {{ t('Data.Home.Testbed') }}

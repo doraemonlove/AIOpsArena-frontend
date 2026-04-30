@@ -10,5 +10,9 @@ export default {
   TestRuns: 'Test Runs',
   Template: 'Template',
   Evaluation: 'Evaluation',
-  Leaderboard: 'Leaderboard'
+  Leaderboard: 'Leaderboard',
+  ToggleLanguage: 'Switch language',
+  ToggleTheme: 'Toggle theme',
+  SignIn: 'Sign in',
+  SignOut: 'Sign out'
 }

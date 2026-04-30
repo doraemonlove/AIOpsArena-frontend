@@ -3,6 +3,12 @@ import type { Renderer } from '../loong-addon-renderer'
 import { RendererBase } from './renderer-base'
 import { parseTimeToSeconds } from '../../utils'
 
+function formatGridTime(date: Date) {
+  const hours = `${date.getHours()}`.padStart(2, '0')
+  const minutes = `${date.getMinutes()}`.padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
 export class GridLineRenderer extends RendererBase {
   readonly minWidth: number
   readonly minHeight: number
@@ -174,7 +180,7 @@ export class GridLineRenderer extends RendererBase {
     for (let i = 0; i < lineYAmount; i++) {
       const x1 = calendarX
       const y1 = calendarY + i * spacingY
-      timeLines.push([y1, time.toLocaleTimeString()])
+      timeLines.push([y1, formatGridTime(time)])
       time.setSeconds(currentSeconds + timeSpacing)
       currentSeconds = time.getSeconds()
       // 左上角，视口外

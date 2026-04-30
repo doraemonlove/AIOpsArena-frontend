@@ -1,4 +1,4 @@
-import type { FaultParam, ParamsMapValue } from '../types'
+import type { FaultParam, FaultParamField, FaultParamOption, ParamsMapValue } from '../types'
 import { h, defineComponent, type Ref, ref, type WritableComputedRef } from 'vue'
 import { ElInputNumber, ElOption, ElSelect, ElInput, ElSwitch, ElRadioGroup, ElRadioButton, ElDatePicker } from 'element-plus'
 import { injectExperiment, injectSchedule } from './api'
@@ -7,19 +7,17 @@ import { getDate0000 } from '@/components/LoongCalendar'
 
 export class FaultDetail {
   static readonly EL_COMPONENTS_WIDTH = '600px'
-  readonly name: string
-  readonly category: string
-  readonly type: string
-  readonly description: string
+  templateName: string
+  name: string
+  category: string
+  type: string
+  description: string
 
   private __faultIns: FaultManager
 
   private __params: Record<
     string,
-    {
-      type: string
-      description: string
-    }
+    FaultParamField
   >
   private __paramsMap: Map<string, ParamsMapValue> = new Map()
 
@@ -37,6 +35,7 @@ export class FaultDetail {
   constructor(faultIns: FaultManager, data: FaultParam, auxData: { namespaces: string[]; podList: string[], namespace: string }) {
     this.__faultIns = faultIns
     this.t = faultIns.t
+    this.templateName = data.templateName || data.name
     this.category = data.category
     this.description = data.description
     this.name = data.name
@@ -45,6 +44,17 @@ export class FaultDetail {
     this.__auxData = auxData
 
     this.createParamsMap()
+  }
+
+  applyFaultParam(data: FaultParam) {
+    this.templateName = data.templateName || data.name
+    this.category = data.category
+    this.description = data.description
+    this.name = data.name
+    this.type = data.type
+    this.__params = data.params
+    this.createParamsMap()
+    this.paramsInit()
   }
 
   private createController(
@@ -84,6 +94,7 @@ export class FaultDetail {
       | ReturnType<typeof FaultDetail.prototype.createElSelectMultiple>
       | ReturnType<typeof FaultDetail.prototype.createElSelect>
       | ReturnType<typeof FaultDetail.prototype.createElSwitch>
+      | ReturnType<typeof FaultDetail.prototype.createElSwitchBoolean>
   ) {
     return defineComponent({
       name: 'MadisonDetailFaultControllerRow',
@@ -159,6 +170,22 @@ export class FaultDetail {
             },
             style: {
               width: FaultDetail.EL_COMPONENTS_WIDTH
+            }
+          })
+        }
+      }
+    })
+  }
+
+  private createElSwitchBoolean(content: Ref<boolean>) {
+    return defineComponent({
+      name: 'MadisonDetailFaultElSwitchBoolean',
+      setup() {
+        return () => {
+          return h(ElSwitch, {
+            modelValue: content.value,
+            'onUpdate:modelValue': (value: string | number | boolean) => {
+              content.value = Boolean(value)
             }
           })
         }
@@ -338,6 +365,7 @@ export class FaultDetail {
    * 创建参数映射表
    */
   private createParamsMap() {
+    this.__paramsMap.clear()
     for (const key in this.__params) {
       const param = this.__params[key]
       let mapV: ParamsMapValue
@@ -357,48 +385,101 @@ export class FaultDetail {
         // }
         continue
       } else if (key === 'targetpods' && param.type === 'array') {
+        const defaultValue = this.normalizeArrayValue(param.defaultValue)
         mapV = {
           type: param.type,
           description: param.description,
           name: key,
           component: 'el-select-multiple',
-          value: ref([]),
-          meta: {},
-          options: this.__auxData.podList.map((item) => ({
-            label: item,
-            value: item
-          }))
+          value: ref(defaultValue),
+          meta: {
+            defaultValue
+          },
+          options: this.hasFieldOptions(param)
+            ? this.resolveFieldOptions(param)
+            : this.__auxData.podList.map((item) => ({
+              label: item,
+              value: item
+            }))
         }
       } else if (key === 'pods' && param.type === 'array') {
+        const defaultValue = this.normalizeArrayValue(param.defaultValue)
         mapV = {
           type: param.type,
           description: param.description,
           name: key,
           component: 'el-select-multiple',
-          value: ref([]),
-          meta: {},
-          options: this.__auxData.podList.map((item) => ({
-            label: item,
-            value: item
-          }))
+          value: ref(defaultValue),
+          meta: {
+            defaultValue
+          },
+          options: this.hasFieldOptions(param)
+            ? this.resolveFieldOptions(param)
+            : this.__auxData.podList.map((item) => ({
+              label: item,
+              value: item
+            }))
+        }
+      } else if (param.type === 'boolean') {
+        mapV = {
+          type: 'boolean',
+          description: param.description,
+          name: key,
+          component: 'el-switch',
+          value: ref(Boolean(param.defaultValue ?? false)),
+          meta: {
+            defaultValue: Boolean(param.defaultValue ?? false)
+          }
+        }
+      } else if (param.type === 'array' && this.hasFieldOptions(param)) {
+        const defaultValue = this.normalizeArrayValue(param.defaultValue)
+        mapV = {
+          type: param.type,
+          description: param.description,
+          name: key,
+          component: 'el-select-multiple',
+          value: ref(defaultValue),
+          meta: {
+            defaultValue
+          },
+          options: this.resolveFieldOptions(param)
+        }
+      } else if (param.type === 'string' && this.hasFieldOptions(param)) {
+        const defaultValue = this.normalizeStringValue(param.defaultValue)
+        mapV = {
+          type: param.type,
+          description: param.description,
+          name: key,
+          component: 'el-select',
+          value: ref(defaultValue),
+          meta: {
+            defaultValue
+          },
+          options: this.resolveFieldOptions(param)
         }
       } else if (param.type === 'string') {
+        const defaultValue = this.normalizeStringValue(param.defaultValue)
         mapV = {
           type: param.type,
           description: param.description,
           name: key,
           component: 'el-input',
-          value: ref(''),
-          meta: {}
+          value: ref(defaultValue),
+          meta: {
+            defaultValue
+          }
         }
       } else if (param.type === 'number') {
+        const defaultValue = this.normalizeNumberValue(param.defaultValue)
         mapV = {
           type: param.type,
           description: param.description,
           name: key,
           component: 'el-input-number',
-          value: ref(1),
-          meta: {}
+          value: ref(defaultValue),
+          meta: {
+            defaultValue
+          }
         }
       } else {
         console.warn(`Unsupported: ${key} ${param.type}`)
@@ -408,17 +489,50 @@ export class FaultDetail {
     }
   }
 
+  private hasFieldOptions(param: FaultParamField) {
+    return Array.isArray(param.options) && param.options.length > 0
+  }
+
+  private resolveFieldOptions(param: FaultParamField): FaultParamOption[] {
+    return (param.options || []).map((item) => ({
+      label: item.label,
+      value: String(item.value)
+    }))
+  }
+
+  private normalizeStringValue(value: FaultParamField['defaultValue']) {
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+    return ''
+  }
+
+  private normalizeNumberValue(value: FaultParamField['defaultValue']) {
+    if (typeof value === 'number' && value > 0) return value
+    if (typeof value === 'string') {
+      const parsed = Number(value)
+      if (!Number.isNaN(parsed) && parsed > 0) return parsed
+    }
+    return 1
+  }
+
+  private normalizeArrayValue(value: FaultParamField['defaultValue']) {
+    if (Array.isArray(value)) return value.map((item) => String(item))
+    return []
+  }
+
   /**
    * 参数初始化
    */
   paramsInit() {
     Array.from(this.__paramsMap.values()).forEach((item) => {
       if (item.component === 'el-input' || item.component === 'el-select') {
-        item.value.value = ''
+        item.value.value = (item.meta.defaultValue as string | undefined) || ''
       } else if (item.component === 'el-input-number') {
-        item.value.value = 1
+        item.value.value = (item.meta.defaultValue as number | undefined) || 1
       } else if (item.component === 'el-select-multiple') {
-        item.value.value = []
+        item.value.value = Array.isArray(item.meta.defaultValue) ? [...item.meta.defaultValue] : []
+      } else if (item.component === 'el-switch') {
+        item.value.value = Boolean(item.meta.defaultValue)
       }
     })
     this.__type.value = 'experiment'
@@ -441,6 +555,8 @@ export class FaultDetail {
           return [item, this.createElSelectMultiple(item.value, item.options)]
         } else if (item.component === 'el-select') {
           return [item, this.createElSelect(item.value, item.options)]
+        } else if (item.component === 'el-switch') {
+          return [item, this.createElSwitchBoolean(item.value)]
         } else return undefined
       })
       .filter((item) => item !== undefined) as [
@@ -451,6 +567,7 @@ export class FaultDetail {
         | ReturnType<typeof FaultDetail.prototype.createElSelectMultiple>
         | ReturnType<typeof FaultDetail.prototype.createElSelect>
         | ReturnType<typeof FaultDetail.prototype.createElSwitch>
+        | ReturnType<typeof FaultDetail.prototype.createElSwitchBoolean>
       )
     ][]
     const row = components.map((component) => {
@@ -483,7 +600,7 @@ export class FaultDetail {
       const clockTime = Math.floor((this.__clockTime.value as Date).getTime() / 1000).toString()
       if (parseInt(clockTime) < Date.now() / 1000) return [false, `clockTime ${t('Madison.FaultManager.Dialog.LessThanNow')}`]
       const options = {
-        templateName: this.name,
+        templateName: this.templateName,
         faultType: this.type,
         clockTime,
         params: params
@@ -505,7 +622,7 @@ export class FaultDetail {
     }
     if (this.__type.value === 'schedule') {
       const options = {
-        templateName: this.name,
+        templateName: this.templateName,
         faultType: this.type,
         schedule: this.__schedule.value,
         params: params

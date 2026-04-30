@@ -96,6 +96,12 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
   'SUCCESS': 'success'
 }
 
+function getStatusLabel(status: string) {
+  const key = `Dataset.Status.${status}`
+  const translated = t(key)
+  return translated === key ? status : translated
+}
+
 </script>
 
 <template>
@@ -115,29 +121,29 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
     >
       <el-table-column
         prop="name"
-        label="Name"
+        :label="t('Dataset.Table.Name')"
         width="180"
       />
       <el-table-column
         prop="description"
-        label="Description"
+        :label="t('Dataset.Table.Description')"
       />
       <el-table-column
-        label="CollectStatus"
+        :label="t('Dataset.Table.CollectStatus')"
       >
         <template #default="scope">
-          <el-tag :type="tagType[scope.row.collectStatus]">{{ scope.row.collectStatus }}</el-tag>
+          <el-tag :type="tagType[scope.row.collectStatus]">{{ getStatusLabel(scope.row.collectStatus) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column
-        label="UploadStatus"
+        :label="t('Dataset.Table.UploadStatus')"
       >
         <template #default="scope">
-          <el-tag :type="tagType[scope.row.uploadStatus]">{{ scope.row.uploadStatus }}</el-tag>
+          <el-tag :type="tagType[scope.row.uploadStatus]">{{ getStatusLabel(scope.row.uploadStatus) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column
-        label="Operations"
+        :label="t('Dataset.Table.Operations')"
         width="360"
       >
         <template #default="scope">
@@ -169,10 +175,10 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
               <div class="flex gap-2 flex-col">
                 <div class="flex gap-2">
                   <span>
-                    Step 1: Upload
+                    {{ t('Dataset.DownloadPopover.Step1') }}
                   </span>
                   <span :class="{ 'text-[#67C23A]': scope.row.uploadStatus === 'SUCCESS'}">
-                    {{ scope.row.uploading ? 'Uploading' : scope.row.uploadStatus === 'SUCCESS' ? 'SUCCESS' : scope.row.uploadStatus }}
+                    {{ scope.row.uploading ? t('Dataset.DownloadPopover.Uploading') : scope.row.uploadStatus === 'SUCCESS' ? getStatusLabel('SUCCESS') : getStatusLabel(scope.row.uploadStatus) }}
                   </span>
                   <el-icon
                     v-show="scope.row.uploading"
@@ -183,13 +189,13 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
                 </div>
                 <div class="flex gap-2">
                   <span>
-                    Step 2: Get URL
+                    {{ t('Dataset.DownloadPopover.Step2') }}
                   </span>
                   <span
                     v-show="scope.row.uploadStatus === 'SUCCESS'"
                     :class="{ 'text-[#67C23A]': scope.row.getURLing === false && scope.row.url}"
                   >
-                    {{ scope.row.getURLing ? 'Getting URL...' : scope.row.url ? 'SUCCESS' : 'FAILURE' }}
+                    {{ scope.row.getURLing ? t('Dataset.DownloadPopover.GettingUrl') : scope.row.url ? getStatusLabel('SUCCESS') : getStatusLabel('FAILURE') }}
                   </span>
                   <a
                     v-show="scope.row.url"
@@ -197,7 +203,7 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
                     :href="scope.row.url"
                     target="_blank"
                   >
-                    Click here to download
+                    {{ t('Dataset.DownloadPopover.Download') }}
                   </a>
                   <el-icon
                     v-show="scope.row.getURLing"
@@ -239,9 +245,9 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
         <el-date-picker
           v-model="timeRange"
           type="datetimerange"
-          range-separator="To"
-          start-placeholder="Start date"
-          end-placeholder="End date"
+          :range-separator="t('Dataset.Create.To')"
+          :start-placeholder="t('Dataset.Create.StartDate')"
+          :end-placeholder="t('Dataset.Create.EndDate')"
           :disabled-date="disabledDate"
           style="width: 100%;"
         />

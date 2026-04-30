@@ -7,7 +7,6 @@ const { t } = useI18n()
 
 const navList = [
   ['Nav.Home', '/', 'home'],
-  ['Nav.Microservice', '/microservice', 'microservice'],
   ['Nav.Testbed', '/testbed', 'testbed'],
   ['Nav.FaultInjection', '/fault-injection', 'faultinjection'],
   ['Nav.Data', '/data', 'database'],

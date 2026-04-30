@@ -1,11 +1,47 @@
 import { service } from '@/core/madison/utils'
-import type { DeleteFaultOptions, GetFaultParamsRes, GetFutureInjectionOptions, GetFutureInjectionRes, GetHistoryInjectionOptions, GetHistoryInjectionRes, GetInjectionResOptions, GetInjectionResRes, InjectExperimentOptions, InjectScheduleOptions } from '../types'
+import type { MadisonApiRes } from '@/core/madison/types'
+import { BACKEND_BASE_URL } from '@/core/madison-addon-platform-assistant/types'
+import type {
+  DeleteFaultOptions,
+  FaultSchema,
+  FaultSchemaTypeItem,
+  GetFutureInjectionOptions,
+  GetFutureInjectionRes,
+  GetHistoryInjectionOptions,
+  GetHistoryInjectionRes,
+  GetInjectionResOptions,
+  GetInjectionResRes,
+  InjectExperimentOptions,
+  InjectScheduleOptions
+} from '../types'
 
-export function getFaultParams() {
-  return service<GetFaultParamsRes>({
-    url: 'chaosmesh/getfaultparams',
+export async function getFaultTypes() {
+  const response = await service<FaultSchemaTypeItem[]>({
+    baseURL: BACKEND_BASE_URL,
+    url: 'chaosmesh/fault_types',
     method: 'get'
   })
+
+  const payload = response.data as MadisonApiRes<FaultSchemaTypeItem[]> | FaultSchemaTypeItem[]
+  if (Array.isArray(payload)) return payload
+  return payload.data || []
+}
+
+export async function getFaultSchema(templateName: string, microservice: string) {
+  const response = await service<FaultSchema>({
+    baseURL: BACKEND_BASE_URL,
+    url: 'chaosmesh/fault_schema',
+    method: 'get',
+    params: {
+      template_name: templateName,
+      microservice
+    }
+  })
+
+  const payload = response.data as MadisonApiRes<FaultSchema> | FaultSchema
+  if (Array.isArray(payload)) return payload[0] || null
+  if ('data' in payload) return payload.data || null
+  return payload || null
 }
 
 export function injectExperiment(options: InjectExperimentOptions) {

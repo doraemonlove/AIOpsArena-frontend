@@ -4,7 +4,6 @@ import theme from './theme.vue'
 import lang from './lang.vue'
 import logout from './logout.vue'
 import login from './login.vue'
-import github from './github.vue'
 
 import { Madison } from '@/core/madison'
 const logged = Madison.getInstance().login.logged
@@ -19,7 +18,6 @@ const logged = Madison.getInstance().login.logged
       <div class="flex items-center gap-4 select-none">
         <lang />
         <theme />
-        <github />
         <logout v-if="logged" />
         <login v-else />
       </div>

@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChatDotRound, Close, Delete, Plus, Promotion, Refresh } from '@element-plus/icons-vue'
 import { ElMessageBox, ElScrollbar } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { getToken, localGet, localSet, message } from '@/core/madison/utils'
 import { Madison } from '@/core/madison'
 import { Login } from '@/core/madison-addon-login'
@@ -28,6 +29,7 @@ const props = defineProps<{
   userId?: string | number | null
 }>()
 
+const { t, locale } = useI18n()
 const router = useRouter()
 const madison = Madison.getInstance()
 const logged = madison.login.logged
@@ -95,7 +97,7 @@ async function loadSessions() {
   await syncResolvedUserIdAsync()
   if (isLoadingSessions.value) return
   if (!hasAuthToken.value) {
-    enterAuthRequiredState('登录后可查看平台助手会话')
+    enterAuthRequiredState(t('PlatformAssistant.Auth.ViewSessions'))
     return
   }
 
@@ -107,7 +109,7 @@ async function loadSessions() {
     })
     const data = response.data
     if (!data || data.code !== 0) {
-      throw new Error(data?.message || '查询会话列表失败')
+      throw new Error(data?.message || t('PlatformAssistant.Errors.ListSessions'))
     }
 
     const messageMap = new Map(sessions.value.map((session) => [session.sessionId, session.messages]))
@@ -133,9 +135,9 @@ async function loadSessions() {
       await loadSessionHistory(activeSessionId.value, true)
     }
   } catch (error) {
-    if (handleAssistantAuthError(error, '登录后可查看平台助手会话')) return
-    listError.value = error instanceof Error ? error.message : '查询会话列表失败'
-    showAssistantRequestError('查询会话列表失败', error)
+    if (handleAssistantAuthError(error, t('PlatformAssistant.Auth.ViewSessions'))) return
+    listError.value = error instanceof Error ? error.message : t('PlatformAssistant.Errors.ListSessions')
+    showAssistantRequestError(t('PlatformAssistant.Errors.ListSessions'), error)
   } finally {
     isLoadingSessions.value = false
   }
@@ -145,7 +147,7 @@ async function handleCreateSession() {
   await syncResolvedUserIdAsync()
   if (isCreatingSession.value) return
   if (!hasAuthToken.value) {
-    enterAuthRequiredState('登录后可创建助手会话')
+    enterAuthRequiredState(t('PlatformAssistant.Auth.CreateSession'))
     return
   }
 
@@ -153,11 +155,11 @@ async function handleCreateSession() {
   try {
     const response = await createAssistantSession({
       app_name: PLATFORM_ASSISTANT_APP_NAME,
-      title: '新会话'
+      title: t('PlatformAssistant.Session.NewTitle')
     })
     const data = response.data
     if (!data || data.code !== 0) {
-      throw new Error(data?.message || '新建会话失败')
+      throw new Error(data?.message || t('PlatformAssistant.Errors.CreateSession'))
     }
 
     const normalized = normalizeAssistantSession(data.data)
@@ -171,8 +173,8 @@ async function handleCreateSession() {
     activeSessionId.value = normalized.sessionId
     markSessionHistoryLoaded(normalized.sessionId)
   } catch (error) {
-    if (handleAssistantAuthError(error, '登录后可创建助手会话')) return
-    showAssistantRequestError('新建会话失败', error)
+    if (handleAssistantAuthError(error, t('PlatformAssistant.Auth.CreateSession'))) return
+    showAssistantRequestError(t('PlatformAssistant.Errors.CreateSession'), error)
   } finally {
     isCreatingSession.value = false
   }
@@ -180,10 +182,10 @@ async function handleCreateSession() {
 
 async function handleDeleteSession(session: AssistantSession) {
   try {
-    await ElMessageBox.confirm(`确认删除会话“${getSessionTitle(session)}”吗？`, '删除会话', {
+    await ElMessageBox.confirm(t('PlatformAssistant.Session.DeleteConfirm', { title: getSessionTitle(session) }), t('PlatformAssistant.Session.DeleteTitle'), {
       type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消'
+      confirmButtonText: t('PlatformAssistant.Actions.Delete'),
+      cancelButtonText: t('PlatformAssistant.Actions.Cancel')
     })
   } catch (_) {
     return
@@ -199,9 +201,9 @@ async function handleDeleteSession(session: AssistantSession) {
     if (activeSessionId.value === session.sessionId) {
       activeSessionId.value = sessions.value[0]?.sessionId || ''
     }
-    message('会话已删除', 'success')
+    message(t('PlatformAssistant.Session.Deleted'), 'success')
   } catch (error) {
-    showAssistantRequestError('删除会话失败', error)
+    showAssistantRequestError(t('PlatformAssistant.Errors.DeleteSession'), error)
   } finally {
     deletingSessionId.value = ''
   }
@@ -212,10 +214,10 @@ async function sendMessage() {
   const text = draft.value.trim()
   if (!text || isSending.value) return
   if (!hasAuthToken.value) {
-    enterAuthRequiredState('登录后可发起平台助手对话')
+    enterAuthRequiredState(t('PlatformAssistant.Auth.Chat'))
     return
   }
-  if (!ensureUserId('当前用户缺少 user_id，无法发送助手消息')) return
+  if (!ensureUserId(t('PlatformAssistant.Errors.MissingUserIdSend'))) return
 
   let session = activeSession.value
   if (!session) {
@@ -223,7 +225,7 @@ async function sendMessage() {
     session = activeSession.value
   }
   if (!session) {
-    message('未能创建可用会话，无法发送消息')
+    message(t('PlatformAssistant.Errors.UnavailableSession'))
     return
   }
 
@@ -243,7 +245,7 @@ async function sendMessage() {
   }
 
   session.messages.push(userMessage, assistantMessage)
-  session.title = session.title || text.slice(0, 20) || '新会话'
+  session.title = session.title || text.slice(0, 20) || t('PlatformAssistant.Session.NewTitle')
   markSessionHistoryLoaded(session.sessionId)
   draft.value = ''
   isSending.value = true
@@ -273,7 +275,7 @@ async function sendMessage() {
           if (!current) return
           current.status = current.content ? 'done' : 'error'
           if (!current.content) {
-            current.content = '暂未收到助手回复，请稍后重试。'
+            current.content = t('PlatformAssistant.Errors.EmptyReply')
           }
         },
         onError: (error) => {
@@ -282,11 +284,11 @@ async function sendMessage() {
       }
     )
   } catch (error) {
-    if (handleAssistantAuthError(error, '登录后可发起平台助手对话')) {
+    if (handleAssistantAuthError(error, t('PlatformAssistant.Auth.Chat'))) {
       const current = findSessionMessage(session.sessionId, assistantMessage.id)
       if (current) {
         current.status = 'error'
-        current.content = '登录状态已失效，请重新登录后重试。'
+        current.content = t('PlatformAssistant.Errors.LoginExpired')
       }
       return
     }
@@ -294,10 +296,10 @@ async function sendMessage() {
     if (current) {
       current.status = 'error'
       if (!current.content) {
-        current.content = '助手回复中断，请稍后重试。'
+        current.content = t('PlatformAssistant.Errors.ReplyInterrupted')
       }
     }
-    showAssistantRequestError('助手对话失败', error)
+    showAssistantRequestError(t('PlatformAssistant.Errors.ChatFailed'), error)
   } finally {
     isSending.value = false
   }
@@ -305,8 +307,8 @@ async function sendMessage() {
 
 function ensureUserId(errorText: string) {
   if (resolvedUserId.value) return true
-  listError.value = '当前登录信息缺少用户标识，请重新登录后重试。'
-  message('当前登录信息缺少用户标识，请重新登录后重试。')
+  listError.value = t('PlatformAssistant.Errors.MissingUserId')
+  message(t('PlatformAssistant.Errors.MissingUserId'))
   return false
 }
 
@@ -353,7 +355,7 @@ async function loadSessionHistory(sessionId: string, force = false) {
     current.state = detail.state || current.state
     markSessionHistoryLoaded(sessionId)
   } catch (error) {
-    showAssistantRequestError('查询历史消息失败', error)
+    showAssistantRequestError(t('PlatformAssistant.Errors.LoadHistory'), error)
   } finally {
     if (loadingHistorySessionId.value === sessionId) {
       loadingHistorySessionId.value = ''
@@ -609,12 +611,12 @@ function resolveUserIdFromToken() {
 function getSessionTitle(session: AssistantSession) {
   if (session.title?.trim()) return session.title
   const firstUserMessage = session.messages.find((item) => item.role === 'user')?.content || ''
-  return firstUserMessage.slice(0, 20) || '新会话'
+  return firstUserMessage.slice(0, 20) || t('PlatformAssistant.Session.NewTitle')
 }
 
 function formatSessionTime(session: AssistantSession) {
   const source = session.updatedAt || session.createdAt
-  if (!source) return '本地缓存会话'
+  if (!source) return t('PlatformAssistant.Session.LocalCached')
 
   const date = new Date(source)
   if (Number.isNaN(date.getTime())) return source
@@ -625,16 +627,20 @@ function formatSessionTime(session: AssistantSession) {
     sameYear &&
     now.getMonth() === date.getMonth() &&
     now.getDate() === date.getDate()
+  const currentLocale = locale.value === 'zh-CN' ? 'zh-CN' : 'en-US'
+  const timeLabel = date.toLocaleTimeString(currentLocale, { hour: '2-digit', minute: '2-digit' })
 
   if (sameDay) {
-    return `今天 ${date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
+    return t('PlatformAssistant.Session.TodayAt', { time: timeLabel })
   }
 
   if (sameYear) {
-    return `${date.getMonth() + 1}月${date.getDate()}日 ${date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
+    return locale.value === 'zh-CN'
+      ? `${date.getMonth() + 1}${t('PlatformAssistant.Session.Month')}${date.getDate()}${t('PlatformAssistant.Session.Day')} ${timeLabel}`
+      : `${date.toLocaleString('en-US', { month: 'short' })} ${date.getDate()} ${timeLabel}`
   }
 
-  return date.toLocaleString('zh-CN', {
+  return date.toLocaleString(currentLocale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -644,8 +650,8 @@ function formatSessionTime(session: AssistantSession) {
 }
 
 function getMessageStatusText(status?: ChatMessage['status']) {
-  if (status === 'streaming') return '回复中...'
-  if (status === 'error') return '回复异常'
+  if (status === 'streaming') return t('PlatformAssistant.Message.Streaming')
+  if (status === 'error') return t('PlatformAssistant.Message.Error')
   return ''
 }
 </script>
@@ -672,8 +678,8 @@ function getMessageStatusText(status?: ChatMessage['status']) {
           <div class="assistant-sidebar">
             <div class="assistant-sidebar__header">
               <div>
-                <div class="assistant-sidebar__title">平台助手</div>
-                <div class="assistant-sidebar__subtitle">会话管理与问答入口</div>
+                <div class="assistant-sidebar__title">{{ t('PlatformAssistant.Sidebar.Title') }}</div>
+                <div class="assistant-sidebar__subtitle">{{ t('PlatformAssistant.Sidebar.Subtitle') }}</div>
               </div>
             </div>
 
@@ -686,7 +692,7 @@ function getMessageStatusText(status?: ChatMessage['status']) {
                 :disabled="isAuthRequired"
                 @click="handleCreateSession"
               >
-                新建会话
+                {{ t('PlatformAssistant.Actions.NewSession') }}
               </el-button>
               <el-button
                 circle
@@ -701,16 +707,16 @@ function getMessageStatusText(status?: ChatMessage['status']) {
               v-if="isAuthRequired"
               class="assistant-auth"
             >
-              <div class="assistant-auth__title">登录后使用平台助手</div>
+              <div class="assistant-auth__title">{{ t('PlatformAssistant.Auth.LoginTitle') }}</div>
               <div class="assistant-auth__desc">
-                {{ authHint || '查看历史会话、创建新会话和发起对话都需要先登录。' }}
+                {{ authHint || t('PlatformAssistant.Auth.LoginDescription') }}
               </div>
               <el-button
                 type="primary"
                 plain
                 @click="toLogin"
               >
-                去登录
+                {{ t('PlatformAssistant.Actions.GoLogin') }}
               </el-button>
             </div>
 
@@ -751,7 +757,7 @@ function getMessageStatusText(status?: ChatMessage['status']) {
                 v-if="!sessions.length && !isLoadingSessions && !isAuthRequired"
                 class="assistant-sidebar__empty"
               >
-                暂无会话，先创建一个吧。
+                {{ t('PlatformAssistant.Sidebar.EmptySessions') }}
               </div>
             </el-scrollbar>
           </div>
@@ -760,7 +766,7 @@ function getMessageStatusText(status?: ChatMessage['status']) {
             <div class="assistant-chat__header">
               <div>
                 <div class="assistant-chat__title">
-                  {{ activeSession ? getSessionTitle(activeSession) : '未选择会话' }}
+                  {{ activeSession ? getSessionTitle(activeSession) : t('PlatformAssistant.Chat.NoSessionSelected') }}
                 </div>
                 <div class="assistant-chat__subtitle">
                   app_name: {{ PLATFORM_ASSISTANT_APP_NAME }}
@@ -782,14 +788,14 @@ function getMessageStatusText(status?: ChatMessage['status']) {
                 v-if="isAuthRequired"
                 class="assistant-chat__placeholder"
               >
-                登录后即可查看会话历史并和平台助手对话。
+                {{ t('PlatformAssistant.Chat.LoginPlaceholder') }}
               </div>
 
               <div
                 v-else-if="!activeSession"
                 class="assistant-chat__placeholder"
               >
-                请选择会话，或发送首条消息自动创建会话。
+                {{ t('PlatformAssistant.Chat.SelectSessionPlaceholder') }}
               </div>
 
               <template v-else>
@@ -797,7 +803,7 @@ function getMessageStatusText(status?: ChatMessage['status']) {
                   v-if="!activeSession.messages.length"
                   class="assistant-chat__placeholder"
                 >
-                  {{ loadingHistorySessionId === activeSession.sessionId ? '正在加载历史消息...' : '这里会展示当前会话的消息记录。' }}
+                  {{ loadingHistorySessionId === activeSession.sessionId ? t('PlatformAssistant.Chat.LoadingHistory') : t('PlatformAssistant.Chat.EmptyMessages') }}
                 </div>
 
                 <div
@@ -825,17 +831,17 @@ function getMessageStatusText(status?: ChatMessage['status']) {
                 type="textarea"
                 resize="none"
                 :autosize="{ minRows: 3, maxRows: 6 }"
-                placeholder="输入问题，Enter 发送，Shift + Enter 换行"
+                :placeholder="t('PlatformAssistant.Chat.InputPlaceholder')"
                 @keydown="onInputKeydown"
               />
               <div class="assistant-chat__composer-actions">
                 <div class="assistant-chat__composer-tip">
                   {{
                     isAuthRequired
-                      ? '登录后可查看会话并发起对话'
+                      ? t('PlatformAssistant.Chat.TipNeedLogin')
                       : resolvedUserId
-                        ? '已同步当前登录身份，可直接发送消息'
-                        : '当前登录信息不完整，请重新登录后重试'
+                        ? t('PlatformAssistant.Chat.TipReady')
+                        : t('PlatformAssistant.Chat.TipMissingIdentity')
                   }}
                 </div>
                 <el-button
@@ -845,7 +851,7 @@ function getMessageStatusText(status?: ChatMessage['status']) {
                   :disabled="isAuthRequired || !draft.trim() || !resolvedUserId"
                   @click="sendMessage"
                 >
-                  发送
+                  {{ t('PlatformAssistant.Actions.Send') }}
                 </el-button>
               </div>
             </div>
@@ -859,6 +865,7 @@ function getMessageStatusText(status?: ChatMessage['status']) {
       type="primary"
       circle
       :icon="ChatDotRound"
+      :title="t('PlatformAssistant.Sidebar.Title')"
       @click="toggleOpen"
     />
   </div>

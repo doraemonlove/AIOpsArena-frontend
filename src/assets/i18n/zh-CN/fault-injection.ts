@@ -1,4 +1,19 @@
 export default {
+  Namespace: '命名空间',
+  FaultLibrary: '故障选择',
+  FaultCategory: '故障大类',
+  AvailableFaults: '该类故障',
+  NoFaultsInCategory: '当前分类下暂无可注入故障',
+  ThisWeek: '本周',
+  WeekView: '周视图',
+  Calendar: {
+    Date: '日视图',
+    Week: '周视图'
+  },
+  CategoryOptions: {
+    pod: 'Pod',
+    service: 'Service'
+  },
   InjectionDialog: {
     Experiment: 'Experiment',
     Schedule: 'Schedule',
@@ -37,6 +52,6 @@ export default {
     Testbed: '试验台',
     Or: '或',
     PLSGoto: '请前往',
-    LastS: '创建微服务系统以获取Namespace'
+    LastS: '创建试验台以获取Namespace'
   }
 }

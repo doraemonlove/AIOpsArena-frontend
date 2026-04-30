@@ -1,108 +1,152 @@
 <script setup lang="ts">
 import { Microservice } from '@/core/madison-addon-testbed'
 import { Madison } from '@/core/madison'
+import onlineboutiqueImage from '@/assets/image/onlineboutique.png'
+import socialnetworkImage from '@/assets/image/socialnetwork.png'
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 
-const props = defineProps({
-  microservice: {
-    type: Microservice,
-    required: true
-  }
+const props = withDefaults(defineProps<{
+  microservice: Microservice,
+  showAction?: boolean,
+  actionText?: string
+}>(), {
+  showAction: false,
+  actionText: ''
 })
 const emits = defineEmits<{
-  create: [microservice: Microservice]
+  select: [microservice: Microservice]
 }>()
 
-const { t } = useI18n()
-const microservice = props.microservice
 const madison = Madison.getInstance()
 const canCreate = madison.testbed.canCreate
+const microservice = props.microservice
+const microserviceImage = computed(() => {
+  const imageMap: Record<string, string> = {
+    onlineboutique: onlineboutiqueImage,
+    socialnetwork: socialnetworkImage
+  }
+  return imageMap[microservice.name] || ''
+})
 
-function create() {
-  if (!canCreate.value) return
-  emits('create', microservice)
+function selectMicroservice() {
+  if (!props.showAction || !canCreate.value) return
+  emits('select', props.microservice)
 }
-
 </script>
 
 <template>
   <div class="card-li">
-    <div class="card border dark:border-white/20">
-      <div class="card__id-container">
-        <div class="card__id">
-          <span>
-            ICON
-          </span>
+    <button
+      class="card border dark:border-white/20"
+      :class="{ 'card--action': props.showAction, 'card--disabled': props.showAction && !canCreate }"
+      :disabled="props.showAction && !canCreate"
+      @click="selectMicroservice"
+    >
+      <div class="card__media">
+        <img
+          v-if="microserviceImage"
+          :src="microserviceImage"
+          :alt="microservice.name"
+          class="card__image"
+        >
+        <div
+          v-else
+          class="card__fallback"
+        >
+          {{ microservice.name.slice(0, 1).toUpperCase() }}
         </div>
       </div>
-      <h3>
+      <div class="card__footer">
         {{ microservice.name }}
-      </h3>
-      <p>
-        {{ microservice.name }}
-      </p>
-      <div
-        class="card__bottom-button border-t dark:border-white/20 text-moonlight-500 hover:text-white hover:bg-moonlight-500"
-        :class="{ '!cursor-not-allowed !text-gray-500 hover:bg-transparent': !canCreate}"
-        @click="create"
-      >
-        {{ t('Microservice.Deploy') }}
       </div>
-    </div>
+    </button>
   </div>
 </template>
 
 <style scoped>
-.card-li:hover>div {
+.card-li:hover>.card {
   transition: all 0.2s linear;
-  transform: translateY(-10px);
+  transform: translateY(-6px);
+}
+
+.card-li {
+  flex: 0 0 clamp(240px, 18%, 320px);
 }
 
 .card {
-  position: relative;
   transition: all 0.2s linear;
-  width: 230px;
-  height: 350px;
-  margin: 50px;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  line-height: auto;
-  flex-direction: column;
-  padding: 15px;
-}
-
-.card__id-container {
-  display: flex;
-  justify-content: center;
   width: 100%;
+  height: 220px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  appearance: none;
+  border-width: 1px;
 }
 
-.card__id {
+.card--action {
+  cursor: pointer;
+}
+
+.card--action:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 14px 32px rgba(59, 130, 246, 0.16);
+}
+
+.card--disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.card__media {
+  display: flex;
+  width: 100%;
+  height: 80%;
+  padding: 18px;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+}
+
+.card__image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.card__fallback {
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: "Exo-SemiBold";
-  font-size: 90px;
-  width: 130px;
-  height: 130px;
-  border-radius: 100%;
+  font-size: 72px;
+  width: 120px;
+  height: 120px;
+  border-radius: 24px;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
 }
 
-.card__bottom-button {
-  user-select: none;
-  cursor: pointer;
+.card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  position: absolute;
-  height: 50px;
-  line-height: 50px;
-  bottom: 0;
-  transition: all 0.2s linear;
-  border-radius: 0px 0px 5px 5px;
+  height: 20%;
+  padding: 0 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
   text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
 }
-.card__bottom-button:hover {
-  transition: all 0.2s linear;
+
+@media (max-width: 900px) {
+  .card-li {
+    flex-basis: min(100%, 320px);
+  }
 }
 </style>

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Madison } from '@/core/madison'
 import { LoadItemStatus } from '@/core/madison-addon-load'
+import type { Microservice } from '@/core/madison-addon-testbed'
 import type { Testbed } from '@/core/madison-addon-testbed/core/testbed'
+import MicroserviceTable from '@/components/MicroserviceTable/index.vue'
 import { message } from '@/utils/utils'
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -22,6 +24,8 @@ const madison = Madison.getInstance()
 const tableData = madison.testbed.testbeds
 const loadButtonDisable = ref(false)
 const loadDialogVisible = ref(false)
+const microserviceSelectDialogVisible = ref(false)
+const testbedCreateDialogVisible = ref(false)
 const createParams = reactive<CreateParamsData[]>([])
 const createLoadOptions = computed(() => {
   const options: Record<string, string | number> = {}
@@ -30,7 +34,44 @@ const createLoadOptions = computed(() => {
   })
   return options
 })
+const microserviceId = ref(-1)
+const testbedName = ref('')
+const serviceName = ref('')
+const desc = ref('')
+const services = ref<[string, number][]>([])
+const allowReplica = ref(true)
 let createLoadTestbed: Testbed | null = null
+
+function openCreateSelector() {
+  if (!madison.testbed.canCreate.value) return
+  microserviceSelectDialogVisible.value = true
+}
+
+function create(microservice: Microservice) {
+  microserviceId.value = microservice.id
+  serviceName.value = microservice.name
+  testbedName.value = ''
+  desc.value = ''
+  services.value = microservice.services.map((service) => [service.name, 1])
+  allowReplica.value = microservice.allowReplica
+  microserviceSelectDialogVisible.value = false
+  testbedCreateDialogVisible.value = true
+}
+
+async function createConfirm() {
+  if (testbedName.value === '') {
+    message(t('Microservice.Dialog.TestbedNameRequired'))
+    return
+  }
+  const useServices = services.value.filter((service) => service[1] !== 1)
+  const res = await madison.testbed.createTestbed({
+    name: testbedName.value,
+    microservice_type: microserviceId.value,
+    description: desc.value,
+    instance_count: Object.fromEntries(useServices)
+  })
+  if (res) testbedCreateDialogVisible.value = false
+}
 
 async function loadButtonClick(index: number) {
   loadButtonDisable.value = true
@@ -113,14 +154,15 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 pt-4">
+  <div class="flex h-full flex-col gap-4 pt-4">
     <div class="flex justify-between items-center pl-4 pr-4">
       <el-button
         size="small"
         plain
         :disabled="!madison.testbed.canCreate"
+        @click="openCreateSelector"
       >
-        <router-link :to="{ name: 'microservice'}">{{ t('Testbed.Add') }}</router-link>
+        {{ t('Testbed.Add') }}
       </el-button>
       <div class="select-none">
         <el-tooltip
@@ -221,6 +263,72 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
         </template>
       </el-table-column>
     </el-table>
+    <el-dialog
+      v-model="microserviceSelectDialogVisible"
+      :title="t('Testbed.SelectMicroserviceTitle')"
+      width="1200"
+    >
+      <div class="max-h-[70vh] overflow-auto">
+        <MicroserviceTable
+          show-action
+          @select="create"
+        />
+      </div>
+    </el-dialog>
+    <el-dialog
+      v-model="testbedCreateDialogVisible"
+      :show-close="false"
+      width="500"
+    >
+      <template #header>
+        <div class="text-4xl font-extrabold font-title text-center">
+          <span>{{ serviceName }}</span>
+        </div>
+      </template>
+      <div class="flex flex-col gap-4 pl-4 pr-4">
+        <span class="text-3xl font-extrabold font-title">{{ t('Microservice.Dialog.TestbedName') }}</span>
+        <el-input
+          v-model="testbedName"
+          :placeholder="t('Microservice.Dialog.TestbedNamePlaceholder')"
+        />
+        <span class="text-3xl font-extrabold font-title">{{ t('Microservice.Dialog.Description') }}</span>
+        <el-input
+          v-model="desc"
+          :rows="2"
+          type="textarea"
+          :placeholder="t('Microservice.Dialog.DescriptionPlaceholder')"
+        />
+        <div
+          v-show="allowReplica"
+          class="flex flex-col gap-4"
+        >
+          <span class="text-3xl font-extrabold font-title">{{ t('Microservice.Dialog.Services') }}</span>
+          <div
+            v-for="item in services"
+            :key="item[0]"
+            class="flex justify-between items-center text-lg"
+          >
+            <span>{{ item[0] }}</span>
+            <el-input-number
+              v-model="item[1]"
+              :min="1"
+              :max="3"
+            />
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="pl-4 pr-4 flex gap-2 justify-end">
+          <el-button @click="testbedCreateDialogVisible = false">{{ t('Microservice.Dialog.Cancel') }}</el-button>
+          <el-button
+            type="primary"
+            @click="createConfirm"
+          >
+            {{ t('Microservice.Dialog.Confirm') }}
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
     <el-dialog
       v-model="loadDialogVisible"
       :title="t('Testbed.Create.Title')"

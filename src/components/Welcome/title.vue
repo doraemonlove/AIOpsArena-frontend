@@ -6,7 +6,7 @@
         <span>Ops </span>
         <router-link
           class="relative inline-block"
-          :to="{ name: 'microservice' }"
+          :to="{ name: 'testbed' }"
         >
           <span>Arena</span>
           <div class="platform-arena" />

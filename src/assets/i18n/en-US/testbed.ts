@@ -1,5 +1,6 @@
 export default {
   Add: 'Add',
+  SelectMicroserviceTitle: 'Select a microservice template',
   Name: 'Name',
   Microservice: 'Microservice',
   Description: 'Description',
@@ -17,5 +18,11 @@ export default {
     Title: 'Create load',
     Cancel: 'Cancel',
     Confirm: 'Confirm'
+  },
+  Page: {
+    MicroserviceTitle: 'Microservice',
+    MicroserviceDescription: 'Browse the available microservice templates.',
+    TestbedTitle: 'Testbed',
+    TestbedDescription: 'Manage existing testbeds and create new ones from the add dialog.'
   }
 }

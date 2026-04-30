@@ -39,7 +39,7 @@ export default {
     Testbed: '试验台',
     Or: '或',
     PLSGoto: '请前往',
-    LastS: '创建微服务系统以获取Namespace；',
+    LastS: '创建试验台以获取Namespace；',
     OINS: '或输入Namespace：',
     InputNamespace: '输入Namespace',
     Goto: '切换'

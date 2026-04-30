@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Madison } from '@/core/madison'
+import { useI18n } from 'vue-i18n'
 import LangIcon from './langIcon.vue'
 
 const madison = Madison.getInstance()
 const lang = madison.i18n.getLang()
+const { t } = useI18n()
 
 function change() {
   madison.i18n.toggleLang()
@@ -11,15 +13,21 @@ function change() {
 </script>
 
 <template>
-  <div
-    class="cursor-pointer"
-    @click="change"
+  <el-tooltip
+    effect="dark"
+    :content="t('Nav.ToggleLanguage')"
+    placement="bottom"
   >
-    <LangIcon
-      class="transition-all"
-      :class="{ 'platform-header-lang-icon--en-us': lang === 'en-US'}"
-    />
-  </div>
+    <div
+      class="cursor-pointer"
+      @click="change"
+    >
+      <LangIcon
+        class="transition-all"
+        :class="{ 'platform-header-lang-icon--en-us': lang === 'en-US'}"
+      />
+    </div>
+  </el-tooltip>
 </template>
 
 <style>
