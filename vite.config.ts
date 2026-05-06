@@ -12,6 +12,11 @@ export default defineConfig({
   ],
   server: {
     proxy: {
+      '/api': {
+        target: 'http://localhost:8002',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
       '/agent-api': {
         target: 'http://localhost:8004',
         changeOrigin: true,
@@ -26,6 +31,5 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
-  },
-  mode: 'development'
+  }
 })
