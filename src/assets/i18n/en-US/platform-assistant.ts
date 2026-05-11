@@ -8,6 +8,10 @@ export default {
     NewSession: 'New Session',
     Delete: 'Delete',
     Cancel: 'Cancel',
+    CancelRun: 'Cancel Run',
+    DeleteRun: 'Delete Run',
+    AnalyzeResult: 'Analyze Result',
+    AnalyzeFailure: 'Analyze Failure',
     GoLogin: 'Sign In',
     Send: 'Send'
   },
@@ -39,6 +43,31 @@ export default {
     TipReady: 'Current identity is synced. You can send messages now',
     TipMissingIdentity: 'Current login data is incomplete. Please sign in again'
   },
+  RunPanel: {
+    Title: 'Session Runs',
+    Subtitle: 'Experiments for the current session',
+    NoSession: 'Create or select a session first',
+    Loading: 'Loading runs for the current session...',
+    Empty: 'No experiments have been created in this session yet.',
+    Mode: 'Mode',
+    Dataset: 'Dataset',
+    EvaluationStatus: 'Evaluation',
+    CreatedAt: 'Created',
+    FinishedAt: 'Finished',
+    CancelTitle: 'Cancel Run',
+    CancelConfirm: 'Submit a cancel request for run_id={runId}?',
+    CancelSubmitted: 'Cancel request submitted',
+    DeleteTitle: 'Delete Run',
+    DeleteConfirm: 'Delete run_id={runId} from this session?',
+    DeleteSuccess: 'Run deleted'
+  },
+  RunMessage: {
+    Finished: 'Experiment run_id={runId} has finished. You can click "Analyze Result" to continue.',
+    Failed: 'Experiment run_id={runId} failed. You can click "Analyze Failure" to inspect it.',
+    Canceled: 'Experiment run_id={runId} has been canceled.',
+    AnalyzeResultPrompt: 'Please analyze the result of run_id={runId} in the current session and summarize the key findings.',
+    AnalyzeFailurePrompt: 'Please analyze why run_id={runId} failed in the current session and suggest debugging steps.'
+  },
   Message: {
     Streaming: 'Responding...',
     Error: 'Response error'
@@ -47,6 +76,8 @@ export default {
     ListSessions: 'Failed to load session list',
     CreateSession: 'Failed to create session',
     DeleteSession: 'Failed to delete session',
+    CancelRun: 'Failed to cancel the run',
+    DeleteRun: 'Failed to delete the run',
     LoadHistory: 'Failed to load message history',
     ChatFailed: 'Assistant chat failed',
     MissingUserId: 'Current login data is missing a user identifier. Please sign in again.',

@@ -8,7 +8,9 @@ import { getToken, localGet, localSet, message } from '@/core/madison/utils'
 import { Madison } from '@/core/madison'
 import { Login } from '@/core/madison-addon-login'
 import {
+  type AssistantStreamPart,
   createAssistantSession,
+  type SessionRun,
   deleteAssistantSession,
   getAssistantSession,
   listAssistantSessions,
@@ -24,6 +26,8 @@ import {
   type AssistantSessionApiItem,
   type ChatMessage
 } from '@/core/madison-addon-platform-assistant'
+import SessionRunPanel from './SessionRunPanel.vue'
+import { useSessionRuns } from './useSessionRuns'
 
 const props = defineProps<{
   userId?: string | number | null
@@ -51,14 +55,33 @@ const syncedUserId = ref('')
 const activeSession = computed(() =>
   sessions.value.find((session) => session.sessionId === activeSessionId.value) || null
 )
+const activeSessionRecordId = computed(() => {
+  if (!activeSession.value) return ''
+  return activeSession.value.id > 0 ? String(activeSession.value.id) : ''
+})
 const loadedHistorySessionIds = ref<string[]>([])
+const {
+  activeRuns,
+  activeRunsLoading,
+  activeRunsError,
+  cancelingRunIds,
+  deletingRunIds,
+  fetchSessionRuns,
+  requestCancelRun,
+  requestDeleteRun,
+  clearSessionRuns
+} = useSessionRuns({
+  isOpen,
+  activeSessionKey: activeSessionId,
+  activeSessionRecordId,
+  onTerminalTransition: ({ sessionRecordId, run, nextStatus }) => {
+    insertRunSystemMessage(sessionRecordId, run, nextStatus)
+  }
+})
 
 const resolvedUserId = computed(() => {
   if (syncedUserId.value) return syncedUserId.value
-  if (props.userId !== undefined && props.userId !== null && props.userId !== '') {
-    return String(props.userId)
-  }
-  return ''
+  return getUserIdCandidates(false)[0] || ''
 })
 
 const hasAuthToken = computed(() => !!getToken())
@@ -78,6 +101,14 @@ watch(
     await syncResolvedUserIdAsync()
   },
   { immediate: true }
+)
+
+watch(
+  () => madison.testbed.testbeds.value.map((item) => item.createdPersonId).join(','),
+  async () => {
+    if (resolvedUserId.value) return
+    await syncResolvedUserIdAsync()
+  }
 )
 
 watch(activeSessionId, async (sessionId) => {
@@ -112,10 +143,11 @@ async function loadSessions() {
       throw new Error(data?.message || t('PlatformAssistant.Errors.ListSessions'))
     }
 
-    const messageMap = new Map(sessions.value.map((session) => [session.sessionId, session.messages]))
+    const sessionMap = new Map(sessions.value.map((session) => [session.sessionId, session]))
     const mergedSessions = data.data.map((item: AssistantSessionApiItem) => {
-      const normalized = normalizeAssistantSession(item)
-      normalized.messages = messageMap.get(normalized.sessionId) || []
+      const existing = sessionMap.get(item.session_id)
+      const normalized = normalizeAssistantSession(item, existing?.id)
+      normalized.messages = existing?.messages || []
       return normalized
     })
 
@@ -198,6 +230,7 @@ async function handleDeleteSession(session: AssistantSession) {
     })
     sessions.value = sessions.value.filter((item) => item.sessionId !== session.sessionId)
     loadedHistorySessionIds.value = loadedHistorySessionIds.value.filter((item) => item !== session.sessionId)
+    clearSessionRuns(String(session.id))
     if (activeSessionId.value === session.sessionId) {
       activeSessionId.value = sessions.value[0]?.sessionId || ''
     }
@@ -210,8 +243,11 @@ async function handleDeleteSession(session: AssistantSession) {
 }
 
 async function sendMessage() {
+  await sendMessageText(draft.value.trim())
+}
+
+async function sendMessageText(text: string) {
   await syncResolvedUserIdAsync()
-  const text = draft.value.trim()
   if (!text || isSending.value) return
   if (!hasAuthToken.value) {
     enterAuthRequiredState(t('PlatformAssistant.Auth.Chat'))
@@ -236,63 +272,29 @@ async function sendMessage() {
     createdAt: Date.now(),
     status: 'done'
   }
-  const assistantMessage: ChatMessage = {
-    id: createMessageId('assistant'),
-    role: 'assistant',
-    content: '',
-    createdAt: Date.now(),
-    status: 'streaming'
-  }
+  const streamGroupId = createMessageId('assistant-stream')
 
-  session.messages.push(userMessage, assistantMessage)
+  session.messages.push(userMessage)
   session.title = session.title || text.slice(0, 20) || t('PlatformAssistant.Session.NewTitle')
   markSessionHistoryLoaded(session.sessionId)
-  draft.value = ''
+  if (draft.value.trim() === text) {
+    draft.value = ''
+  }
   isSending.value = true
   sseError.value = ''
 
   try {
-    await runAssistantSSE(
-      {
-        app_name: PLATFORM_ASSISTANT_APP_NAME,
-        user_id: resolvedUserId.value!,
-        session_id: session.sessionId,
-        new_message: {
-          role: 'user',
-          parts: [{ text }]
-        }
-      },
-      {
-        onText: (chunk) => {
-          const current = findSessionMessage(session!.sessionId, assistantMessage.id)
-          if (!current) return
-          current.content += chunk
-          current.status = 'streaming'
-          nextTick(scrollMessagesToBottom)
-        },
-        onFinish: () => {
-          const current = findSessionMessage(session!.sessionId, assistantMessage.id)
-          if (!current) return
-          current.status = current.content ? 'done' : 'error'
-          if (!current.content) {
-            current.content = t('PlatformAssistant.Errors.EmptyReply')
-          }
-        },
-        onError: (error) => {
-          sseError.value = error.message
-        }
-      }
-    )
+    await runAssistantSSEWithFallback(session.sessionId, text, streamGroupId)
   } catch (error) {
     if (handleAssistantAuthError(error, t('PlatformAssistant.Auth.Chat'))) {
-      const current = findSessionMessage(session.sessionId, assistantMessage.id)
+      const current = ensureStreamAnswerMessage(session.sessionId, streamGroupId)
       if (current) {
         current.status = 'error'
         current.content = t('PlatformAssistant.Errors.LoginExpired')
       }
       return
     }
-    const current = findSessionMessage(session.sessionId, assistantMessage.id)
+    const current = ensureStreamAnswerMessage(session.sessionId, streamGroupId)
     if (current) {
       current.status = 'error'
       if (!current.content) {
@@ -302,13 +304,16 @@ async function sendMessage() {
     showAssistantRequestError(t('PlatformAssistant.Errors.ChatFailed'), error)
   } finally {
     isSending.value = false
+    if (activeSessionRecordId.value) {
+      await fetchSessionRuns(activeSessionRecordId.value, true)
+    }
   }
 }
 
 function ensureUserId(errorText: string) {
-  if (resolvedUserId.value) return true
-  listError.value = t('PlatformAssistant.Errors.MissingUserId')
-  message(t('PlatformAssistant.Errors.MissingUserId'))
+  if (getUserIdCandidates().length > 0) return true
+  listError.value = errorText || t('PlatformAssistant.Errors.MissingUserId')
+  message(errorText || t('PlatformAssistant.Errors.MissingUserId'))
   return false
 }
 
@@ -326,7 +331,7 @@ async function selectSession(sessionId: string) {
 
 async function loadSessionHistory(sessionId: string, force = false) {
   await syncResolvedUserIdAsync()
-  if (!resolvedUserId.value) return
+  if (!ensureUserId(t('PlatformAssistant.Errors.MissingUserId'))) return
   if (loadingHistorySessionId.value === sessionId) return
 
   const session = sessions.value.find((item) => item.sessionId === sessionId)
@@ -343,15 +348,12 @@ async function loadSessionHistory(sessionId: string, force = false) {
 
   loadingHistorySessionId.value = sessionId
   try {
-    const detail = await getAssistantSession({
-      app_name: PLATFORM_ASSISTANT_APP_NAME,
-      user_id: resolvedUserId.value,
-      session_id: sessionId
-    })
+    const detail = await getAssistantSessionWithFallback(sessionId)
     const historyMessages = normalizeSessionHistoryMessages(detail)
     const current = sessions.value.find((item) => item.sessionId === sessionId)
     if (!current) return
-    current.messages = historyMessages
+    const localSystemMessages = current.messages.filter((item) => isLocalSystemMessage(item))
+    current.messages = mergeMessages(historyMessages, localSystemMessages)
     current.state = detail.state || current.state
     markSessionHistoryLoaded(sessionId)
   } catch (error) {
@@ -378,6 +380,321 @@ function findSessionMessage(sessionId: string, messageId: string) {
   return session?.messages.find((item) => item.id === messageId)
 }
 
+function findStreamMessages(sessionId: string, streamGroupId: string) {
+  const session = sessions.value.find((item) => item.sessionId === sessionId)
+  if (!session) return []
+  return session.messages.filter((item) => item.meta?.streamGroupId === streamGroupId)
+}
+
+function findLatestStreamMessage(sessionId: string, streamGroupId: string) {
+  const streamMessages = findStreamMessages(sessionId, streamGroupId)
+  return streamMessages[streamMessages.length - 1]
+}
+
+function ensureStreamAnswerMessage(sessionId: string, streamGroupId: string) {
+  const session = sessions.value.find((item) => item.sessionId === sessionId)
+  if (!session) return null
+
+  const existing = session.messages.find(
+    (item) => item.meta?.streamGroupId === streamGroupId && item.role === 'assistant'
+  )
+  if (existing) return existing
+
+  const messageItem: ChatMessage = {
+    id: createMessageId('assistant'),
+    role: 'assistant',
+    content: '',
+    createdAt: Date.now(),
+    status: 'streaming',
+    meta: {
+      streamGroupId
+    }
+  }
+  session.messages.push(messageItem)
+  return messageItem
+}
+
+function appendStreamingParts(sessionId: string, streamGroupId: string, parts: AssistantStreamPart[]) {
+  const session = sessions.value.find((item) => item.sessionId === sessionId)
+  if (!session || !parts.length) return
+
+  parts.forEach((part) => {
+    const role = part.kind === 'answer' ? 'assistant' : 'system'
+    const lastMessage = findLatestStreamMessage(sessionId, streamGroupId)
+    const isSameKind =
+      !!lastMessage &&
+      lastMessage.role === role &&
+      (
+        (part.kind === 'answer' && !lastMessage.meta?.kind) ||
+        lastMessage.meta?.kind === part.kind
+      ) &&
+      lastMessage.status === 'streaming'
+
+    if (lastMessage && !isSameKind && lastMessage.status === 'streaming') {
+      lastMessage.status = lastMessage.content ? 'done' : 'error'
+    }
+
+    if (part.kind === 'answer' && !lastMessage) {
+      const answerMessage = ensureStreamAnswerMessage(sessionId, streamGroupId)
+      if (answerMessage) {
+        answerMessage.content += part.content
+        return
+      }
+    }
+
+    if (isSameKind && lastMessage) {
+      lastMessage.content += part.content
+      return
+    }
+
+    session.messages.push({
+      id: createMessageId(role),
+      role,
+      content: part.content,
+      createdAt: Date.now(),
+      status: 'streaming',
+      meta: {
+        ...(part.kind === 'answer' ? {} : { kind: part.kind }),
+        streamGroupId
+      }
+    })
+  })
+
+  nextTick(scrollMessagesToBottom)
+}
+
+function mergeMessages(historyMessages: ChatMessage[], localMessages: ChatMessage[]) {
+  const merged = [...historyMessages]
+  const existingIds = new Set(historyMessages.map((item) => item.id))
+  for (const item of localMessages) {
+    if (!existingIds.has(item.id)) {
+      merged.push(item)
+    }
+  }
+  return merged.sort((a, b) => a.createdAt - b.createdAt)
+}
+
+function isLocalSystemMessage(messageItem: ChatMessage) {
+  return messageItem.role === 'system' && messageItem.meta?.localOnly === true
+}
+
+function getRunTransitionMessage(run: SessionRun, status: string) {
+  if (status === 'finished') {
+    return t('PlatformAssistant.RunMessage.Finished', { runId: run.run_id })
+  }
+  if (status === 'failed') {
+    return t('PlatformAssistant.RunMessage.Failed', { runId: run.run_id })
+  }
+  return t('PlatformAssistant.RunMessage.Canceled', { runId: run.run_id })
+}
+
+function getRunMessageActions(run: SessionRun, status: string) {
+  if (status === 'finished') {
+    return [
+      {
+        key: 'analyze-result',
+        label: t('PlatformAssistant.Actions.AnalyzeResult'),
+        prompt: t('PlatformAssistant.RunMessage.AnalyzeResultPrompt', {
+          runId: run.run_id
+        })
+      }
+    ]
+  }
+
+  if (status === 'failed') {
+    return [
+      {
+        key: 'analyze-failure',
+        label: t('PlatformAssistant.Actions.AnalyzeFailure'),
+        prompt: t('PlatformAssistant.RunMessage.AnalyzeFailurePrompt', {
+          runId: run.run_id
+        })
+      }
+    ]
+  }
+
+  return []
+}
+
+function insertRunSystemMessage(sessionId: string, run: SessionRun, status: string) {
+  const session = sessions.value.find((item) => String(item.id) === sessionId)
+  if (!session) return
+
+  const messageId = `system-run-${sessionId}-${run.run_id}-${status}`
+  const exists = session.messages.some((item) => item.id === messageId)
+  if (exists) return
+
+  session.messages.push({
+    id: messageId,
+    role: 'system',
+    content: getRunTransitionMessage(run, status),
+    createdAt: Date.now(),
+    status: 'done',
+    meta: {
+      localOnly: true,
+      source: 'session-run',
+      runId: run.run_id,
+      runStatus: status,
+      actions: getRunMessageActions(run, status)
+    }
+  })
+}
+
+async function handleRefreshRuns() {
+  if (!activeSessionRecordId.value) return
+  await fetchSessionRuns(activeSessionRecordId.value)
+}
+
+async function handleCancelRun(run: SessionRun) {
+  const sessionId = activeSessionRecordId.value
+  if (!sessionId) return
+
+  try {
+    await ElMessageBox.confirm(
+      t('PlatformAssistant.RunPanel.CancelConfirm', { runId: run.run_id }),
+      t('PlatformAssistant.RunPanel.CancelTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('PlatformAssistant.Actions.CancelRun'),
+        cancelButtonText: t('PlatformAssistant.Actions.Cancel')
+      }
+    )
+  } catch (_) {
+    return
+  }
+
+  try {
+    await requestCancelRun(sessionId, run.run_id)
+    message(t('PlatformAssistant.RunPanel.CancelSubmitted'), 'success')
+    await fetchSessionRuns(sessionId, true)
+  } catch (error) {
+    showAssistantRequestError(t('PlatformAssistant.Errors.CancelRun'), error)
+  }
+}
+
+async function handleDeleteRun(run: SessionRun) {
+  const sessionId = activeSessionRecordId.value
+  if (!sessionId) return
+
+  try {
+    await ElMessageBox.confirm(
+      t('PlatformAssistant.RunPanel.DeleteConfirm', { runId: run.run_id }),
+      t('PlatformAssistant.RunPanel.DeleteTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('PlatformAssistant.Actions.DeleteRun'),
+        cancelButtonText: t('PlatformAssistant.Actions.Cancel')
+      }
+    )
+  } catch (_) {
+    return
+  }
+
+  try {
+    await requestDeleteRun(sessionId, run.run_id)
+    message(t('PlatformAssistant.RunPanel.DeleteSuccess'), 'success')
+  } catch (error) {
+    showAssistantRequestError(t('PlatformAssistant.Errors.DeleteRun'), error)
+  }
+}
+
+async function handleAnalyzeRun(run: SessionRun) {
+  const prompt =
+    run.status === 'failed'
+      ? t('PlatformAssistant.RunMessage.AnalyzeFailurePrompt', { runId: run.run_id })
+      : t('PlatformAssistant.RunMessage.AnalyzeResultPrompt', { runId: run.run_id })
+  await sendMessageText(prompt)
+}
+
+async function handleSystemActionClick(action: Record<string, any>) {
+  const prompt = typeof action?.prompt === 'string' ? action.prompt : ''
+  if (!prompt) return
+  await sendMessageText(prompt)
+}
+
+async function getAssistantSessionWithFallback(sessionId: string) {
+  const candidates = getUserIdCandidates()
+  let lastError: unknown = null
+
+  for (const userId of candidates) {
+    try {
+      const detail = await getAssistantSession({
+        app_name: PLATFORM_ASSISTANT_APP_NAME,
+        user_id: userId,
+        session_id: sessionId
+      })
+      syncSuccessfulUserId(userId)
+      return detail
+    } catch (error) {
+      lastError = error
+      if (!shouldRetryAssistantUserId(error)) {
+        throw error
+      }
+    }
+  }
+
+  throw lastError || new Error(t('PlatformAssistant.Errors.LoadHistory'))
+}
+
+async function runAssistantSSEWithFallback(sessionId: string, text: string, assistantMessageId: string) {
+  const candidates = getUserIdCandidates()
+  let lastError: unknown = null
+
+  for (const userId of candidates) {
+    try {
+      await runAssistantSSE(
+        {
+          app_name: PLATFORM_ASSISTANT_APP_NAME,
+          user_id: userId,
+          session_id: sessionId,
+          new_message: {
+            role: 'user',
+            parts: [{ text }]
+          }
+        },
+        {
+          onParts: (parts) => {
+            appendStreamingParts(sessionId, assistantMessageId, parts)
+          },
+          onText: (chunk) => {
+            const current = ensureStreamAnswerMessage(sessionId, assistantMessageId)
+            if (!current) return
+            current.content += chunk
+            current.status = 'streaming'
+            nextTick(scrollMessagesToBottom)
+          },
+          onFinish: () => {
+            const streamMessages = findStreamMessages(sessionId, assistantMessageId)
+            if (!streamMessages.length) {
+              const fallbackMessage = ensureStreamAnswerMessage(sessionId, assistantMessageId)
+              if (fallbackMessage) {
+                fallbackMessage.status = 'error'
+                fallbackMessage.content = t('PlatformAssistant.Errors.EmptyReply')
+              }
+              return
+            }
+            streamMessages.forEach((item) => {
+              item.status = item.content ? 'done' : 'error'
+            })
+          },
+          onError: (error) => {
+            sseError.value = error.message
+          }
+        }
+      )
+      syncSuccessfulUserId(userId)
+      return
+    } catch (error) {
+      lastError = error
+      if (!shouldRetryAssistantUserId(error)) {
+        throw error
+      }
+    }
+  }
+
+  throw lastError || new Error(t('PlatformAssistant.Errors.ChatFailed'))
+}
+
 function scrollMessagesToBottom() {
   messageScrollRef.value?.setScrollTop(Number.MAX_SAFE_INTEGER)
 }
@@ -388,39 +705,35 @@ function markSessionHistoryLoaded(sessionId: string) {
 }
 
 async function syncResolvedUserIdAsync() {
-  if (props.userId !== undefined && props.userId !== null && props.userId !== '') {
-    syncedUserId.value = normalizeUserId(props.userId)
+  const immediateCandidate = getUserIdCandidates(false)[0] || ''
+  if (immediateCandidate) {
+    syncedUserId.value = immediateCandidate
     return
   }
 
-  const storedUserId = normalizeUserId(localGet(Login.USER_ID_KEY, '') || '')
-  if (storedUserId) {
-    syncedUserId.value = storedUserId
-    return
-  }
-
-  const fromToken = normalizeUserId(resolveUserIdFromToken())
-  if (fromToken) {
-    syncedUserId.value = fromToken
-    return
-  }
-
-  if (hasAuthToken.value) {
-    try {
-      await madison.testbed.waitingForTestbeds
-    } catch (_) {}
-  }
-
-  const fromTestbed = resolveUserIdFromTestbeds()
+  const fromTestbed = resolveUserIdFromTestbeds(false)
   if (fromTestbed) {
     syncedUserId.value = fromTestbed
+    return
+  }
+
+  try {
+    await madison.testbed.waitingForTestbeds
+  } catch (_) {}
+
+  const delayedFromTestbed = resolveUserIdFromTestbeds(false)
+  if (delayedFromTestbed) {
+    syncedUserId.value = delayedFromTestbed
     return
   }
 
   syncedUserId.value = ''
 }
 
-function resolveUserIdFromTestbeds() {
+function resolveUserIdFromTestbeds(allowWait: boolean) {
+  if (allowWait) {
+    void madison.testbed.waitingForTestbeds.catch(() => undefined)
+  }
   const testbeds = madison.testbed.testbeds.value
   const firstOwnedId = testbeds.find((item) => normalizeUserId(item.createdPersonId))?.createdPersonId
   const normalized = normalizeUserId(firstOwnedId)
@@ -430,32 +743,87 @@ function resolveUserIdFromTestbeds() {
   return normalized
 }
 
+function getUserIdCandidates(includeTestbed: boolean = true) {
+  const candidates = [
+    normalizeUserId(syncedUserId.value),
+    normalizeUserId(props.userId),
+    normalizeUserId(localGet(Login.USER_ID_KEY, '') || ''),
+    normalizeUserId(resolveUserIdFromToken()),
+    includeTestbed ? normalizeUserId(resolveUserIdFromTestbeds(false)) : ''
+  ]
+
+  return candidates.filter((item, index) => !!item && candidates.indexOf(item) === index)
+}
+
 function normalizeUserId(value: unknown) {
   if (value === undefined || value === null) return ''
-  const normalized = String(value).trim()
-  return /^\d+$/.test(normalized) ? normalized : ''
+  return String(value).trim()
+}
+
+function syncSuccessfulUserId(userId: string) {
+  const normalized = normalizeUserId(userId)
+  if (!normalized) return
+  syncedUserId.value = normalized
+  localSet(Login.USER_ID_KEY, normalized)
+}
+
+function shouldRetryAssistantUserId(error: unknown) {
+  const text = error instanceof Error ? error.message : String(error || '')
+  const normalized = text.toLowerCase()
+  return normalized.includes('404') || normalized.includes('session not found') || normalized.includes('not found')
+}
+
+function extractUserIdFromPayload(payload: Record<string, unknown>) {
+  const directCandidate =
+    payload.user_id ||
+    payload.userId ||
+    payload.uid ||
+    payload.id ||
+    payload.sub
+
+  const normalizedDirect = normalizeUserId(directCandidate)
+  if (normalizedDirect) return normalizedDirect
+
+  const nestedSources = [payload.user, payload.data, payload.profile]
+  for (const source of nestedSources) {
+    if (!source || typeof source !== 'object') continue
+    const candidate =
+      (source as Record<string, unknown>).user_id ||
+      (source as Record<string, unknown>).userId ||
+      (source as Record<string, unknown>).uid ||
+      (source as Record<string, unknown>).id ||
+      (source as Record<string, unknown>).sub
+    const normalized = normalizeUserId(candidate)
+    if (normalized) return normalized
+  }
+
+  return ''
 }
 
 function normalizeSessionHistoryMessages(detail: AssistantSessionDetail) {
   return detail.events
-    .map((event, index) => normalizeSessionEventToMessage(event, index))
+    .flatMap((event, index) => normalizeSessionEventToMessages(event, index))
     .filter((item): item is ChatMessage => !!item)
 }
 
-function normalizeSessionEventToMessage(event: AssistantSessionEvent, index: number) {
+function normalizeSessionEventToMessages(event: AssistantSessionEvent, index: number) {
   const role = normalizeEventRole(event)
-  if (!role) return null
+  if (!role) return []
 
-  const content = extractEventText(event)
-  if (!content) return null
+  const createdAt = normalizeEventTime(event, index)
+  const parts = extractEventParts(event)
+  if (!parts.length) return []
 
-  return {
-    id: String(event.id || `${role}-${index}-${Date.now()}`),
-    role,
-    content,
-    createdAt: normalizeEventTime(event, index),
-    status: 'done' as const
-  }
+  return parts.map((part, partIndex) => ({
+    id: String(event.id || `${role}-${index}-${Date.now()}`) + `-${part.kind}-${partIndex}`,
+    role: part.kind === 'answer' ? role : 'system',
+    content: part.content,
+    createdAt: createdAt + partIndex,
+    status: 'done' as const,
+    meta: {
+      kind: part.kind
+    }
+  }))
 }
 
 function normalizeEventRole(event: AssistantSessionEvent) {
@@ -467,6 +835,7 @@ function normalizeEventRole(event: AssistantSessionEvent) {
 
   const normalized = String(rawRole || '').toLowerCase()
   if (normalized === 'user') return 'user'
+  if (['system', 'tool', 'notice'].includes(normalized)) return 'system'
   if (
     ['assistant', 'model', 'agent', 'bot', 'root_agent'].includes(normalized) ||
     normalized.endsWith('_agent')
@@ -488,72 +857,55 @@ function normalizeEventTime(event: AssistantSessionEvent, index: number) {
   return Date.now() + index
 }
 
-function extractEventText(event: AssistantSessionEvent) {
-  const text = extractDisplayTextFromUnknown(event.content || event)
-  return text.trim()
+function extractEventParts(event: AssistantSessionEvent) {
+  const rawParts = Array.isArray(event.content?.parts) ? event.content.parts : []
+  const parts: Array<{ kind: 'answer' | 'thought' | 'tool-call' | 'tool-response'; content: string }> = []
+
+  rawParts.forEach((part) => {
+    if (!part || typeof part !== 'object') return
+
+    if (typeof part.text === 'string' && part.text.trim()) {
+      parts.push({
+        kind: part.thought === true ? 'thought' : 'answer',
+        content: part.text.trim()
+      })
+    }
+
+    if (part.functionCall && typeof part.functionCall === 'object') {
+      const functionCall = part.functionCall as Record<string, unknown>
+      const name = typeof functionCall.name === 'string' ? functionCall.name : 'unknown_tool'
+      const args = formatJsonBlock(functionCall.args)
+      parts.push({
+        kind: 'tool-call',
+        content: args
+          ? `工具调用: ${name}\n${args}`
+          : `工具调用: ${name}`
+      })
+    }
+
+    if (part.functionResponse && typeof part.functionResponse === 'object') {
+      const functionResponse = part.functionResponse as Record<string, unknown>
+      const name = typeof functionResponse.name === 'string' ? functionResponse.name : 'unknown_tool'
+      const response = formatJsonBlock(functionResponse.response)
+      parts.push({
+        kind: 'tool-response',
+        content: response
+          ? `工具返回: ${name}\n${response}`
+          : `工具返回: ${name}`
+      })
+    }
+  })
+
+  return parts
 }
 
-function extractDisplayTextFromUnknown(payload: unknown) {
-  const texts: string[] = []
-  const visited = new WeakSet<object>()
-  const ignoredKeys = new Set([
-    'functionCall',
-    'functionResponse',
-    'thought',
-    'tool',
-    'tools',
-    'debug',
-    'raw'
-  ])
-
-  const visit = (value: unknown) => {
-    if (!value || typeof value !== 'object') return
-    if (visited.has(value as object)) return
-    visited.add(value as object)
-
-    if (Array.isArray(value)) {
-      value.forEach(visit)
-      return
-    }
-
-    for (const [key, child] of Object.entries(value)) {
-      if (ignoredKeys.has(key)) continue
-
-      if (
-        key === 'content' &&
-        child &&
-        typeof child === 'object' &&
-        Array.isArray((child as Record<string, unknown>).parts)
-      ) {
-        for (const part of (child as Record<string, unknown>).parts as Array<Record<string, unknown>>) {
-          if (part && part.thought === true) {
-            continue
-          }
-          if (part && typeof part.text === 'string') {
-            texts.push(part.text)
-          }
-        }
-        continue
-      }
-
-      if (key === 'parts' && Array.isArray(child)) {
-        for (const part of child as Array<Record<string, unknown>>) {
-          if (part && part.thought === true) {
-            continue
-          }
-          if (part && typeof part.text === 'string') {
-            texts.push(part.text)
-          }
-        }
-        continue
-      }
-
-      visit(child)
-    }
+function formatJsonBlock(value: unknown) {
+  if (value === undefined) return ''
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch (_) {
+    return String(value)
   }
-
-  visit(payload)
-  return texts.join('')
 }
 
 function enterAuthRequiredState(hint: string) {
@@ -577,7 +929,9 @@ function isAuthError(error: unknown) {
     normalized.includes('token expired') ||
     normalized.includes('unauthorized') ||
     normalized.includes('401') ||
-    normalized.includes('login') ||
+    normalized.includes('not logged in') ||
+    normalized.includes('please login') ||
+    normalized.includes('please log in') ||
     normalized.includes('invalid token')
   )
 }
@@ -601,8 +955,7 @@ function resolveUserIdFromToken() {
         .join('')
     )
     const data = JSON.parse(decoded) as Record<string, unknown>
-    const candidate = data.user_id || data.userId || data.uid || data.id || data.sub
-    return candidate === undefined || candidate === null ? '' : String(candidate)
+    return extractUserIdFromPayload(data)
   } catch (_) {
     return ''
   }
@@ -652,6 +1005,16 @@ function formatSessionTime(session: AssistantSession) {
 function getMessageStatusText(status?: ChatMessage['status']) {
   if (status === 'streaming') return t('PlatformAssistant.Message.Streaming')
   if (status === 'error') return t('PlatformAssistant.Message.Error')
+  return ''
+}
+
+function getMessageKindLabel(messageItem: ChatMessage) {
+  const kind = messageItem.meta?.kind
+  if (kind === 'thought') return '思考'
+  if (kind === 'tool-call') return '工具调用'
+  if (kind === 'tool-response') return '工具返回'
+  if (messageItem.role === 'assistant') return '助手'
+  if (messageItem.role === 'system') return '系统'
   return ''
 }
 </script>
@@ -810,10 +1173,34 @@ function getMessageStatusText(status?: ChatMessage['status']) {
                   v-for="item in activeSession.messages"
                   :key="item.id"
                   class="assistant-message"
-                  :class="`assistant-message--${item.role}`"
+                  :class="[
+                    `assistant-message--${item.role}`,
+                    item.meta?.kind ? `assistant-message--${item.meta.kind}` : ''
+                  ]"
                 >
                   <div class="assistant-message__bubble">
+                    <div
+                      v-if="getMessageKindLabel(item)"
+                      class="assistant-message__kind"
+                    >
+                      {{ getMessageKindLabel(item) }}
+                    </div>
                     <div class="assistant-message__content">{{ item.content }}</div>
+                    <div
+                      v-if="item.role === 'system' && item.meta?.actions?.length"
+                      class="assistant-message__actions"
+                    >
+                      <el-button
+                        v-for="action in item.meta.actions"
+                        :key="action.key || action.label"
+                        size="small"
+                        text
+                        :disabled="isSending || isAuthRequired"
+                        @click="handleSystemActionClick(action)"
+                      >
+                        {{ action.label }}
+                      </el-button>
+                    </div>
                     <div
                       v-if="getMessageStatusText(item.status)"
                       class="assistant-message__status"
@@ -856,6 +1243,19 @@ function getMessageStatusText(status?: ChatMessage['status']) {
               </div>
             </div>
           </div>
+
+            <SessionRunPanel
+            :session-id="activeSessionRecordId"
+            :runs="activeRuns"
+            :loading="activeRunsLoading"
+            :error="activeRunsError"
+            :canceling-run-ids="cancelingRunIds"
+            :deleting-run-ids="deletingRunIds"
+            @refresh="handleRefreshRuns"
+            @cancel="handleCancelRun"
+            @delete="handleDeleteRun"
+            @analyze="handleAnalyzeRun"
+          />
         </section>
       </div>
     </transition>
@@ -900,7 +1300,7 @@ function getMessageStatusText(status?: ChatMessage['status']) {
   right: 24px;
   bottom: 96px;
   display: flex;
-  width: min(980px, calc(100vw - 32px));
+  width: min(1300px, calc(100vw - 32px));
   height: min(680px, calc(100vh - 120px));
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.26);
@@ -1131,6 +1531,10 @@ function getMessageStatusText(status?: ChatMessage['status']) {
   justify-content: flex-start;
 }
 
+.assistant-message--system {
+  justify-content: flex-start;
+}
+
 .assistant-message__bubble {
   max-width: min(85%, 720px);
   border-radius: 18px;
@@ -1140,23 +1544,94 @@ function getMessageStatusText(status?: ChatMessage['status']) {
   word-break: break-word;
 }
 
+.assistant-message__kind {
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.78;
+}
+
 .assistant-message--user .assistant-message__bubble {
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
-  color: #eff6ff;
+  background: linear-gradient(135deg, #f9a8d4, #fbcfe8);
+  color: #831843;
   border-bottom-right-radius: 6px;
 }
 
 .assistant-message--assistant .assistant-message__bubble {
-  background: rgba(255, 255, 255, 0.9);
-  color: #0f172a;
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(180deg, rgba(220, 252, 231, 0.92), rgba(240, 253, 244, 0.92));
+  color: #14532d;
+  border: 1px solid rgba(134, 239, 172, 0.38);
   border-bottom-left-radius: 6px;
+  text-align: left;
+}
+
+.assistant-message--system .assistant-message__bubble {
+  max-width: min(92%, 760px);
+  background: linear-gradient(180deg, rgba(254, 249, 195, 0.92), rgba(254, 252, 232, 0.92));
+  color: #854d0e;
+  border: 1px dashed rgba(234, 179, 8, 0.3);
+  border-radius: 16px;
+  text-align: left;
 }
 
 .dark .assistant-message--assistant .assistant-message__bubble {
-  background: rgba(30, 41, 59, 0.82);
-  color: #e2e8f0;
-  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(20, 83, 45, 0.34);
+  color: #dcfce7;
+  border-color: rgba(74, 222, 128, 0.26);
+}
+
+.dark .assistant-message--system .assistant-message__bubble {
+  background: rgba(113, 63, 18, 0.34);
+  color: #fde68a;
+  border-color: rgba(250, 204, 21, 0.24);
+}
+
+.assistant-message--thought .assistant-message__bubble {
+  max-width: min(88%, 760px);
+  background: linear-gradient(180deg, rgba(243, 232, 255, 0.94), rgba(250, 245, 255, 0.94));
+  color: #6b21a8;
+  border: 1px dashed rgba(192, 132, 252, 0.32);
+  font-size: 13px;
+  text-align: left;
+}
+
+.assistant-message--tool-call .assistant-message__bubble,
+.assistant-message--tool-response .assistant-message__bubble {
+  max-width: min(92%, 760px);
+  background: linear-gradient(180deg, rgba(224, 242, 254, 0.94), rgba(240, 249, 255, 0.94));
+  color: #0f172a;
+  border: 1px solid rgba(125, 211, 252, 0.4);
+  font-size: 13px;
+  text-align: left;
+  overflow-x: auto;
+}
+
+.assistant-message--tool-call .assistant-message__content,
+.assistant-message--tool-response .assistant-message__content {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.dark .assistant-message--thought .assistant-message__bubble {
+  background: rgba(88, 28, 135, 0.34);
+  color: #f3e8ff;
+  border-color: rgba(192, 132, 252, 0.24);
+}
+
+.dark .assistant-message--tool-call .assistant-message__bubble,
+.dark .assistant-message--tool-response .assistant-message__bubble {
+  background: rgba(12, 74, 110, 0.36);
+  color: #e0f2fe;
+  border-color: rgba(125, 211, 252, 0.28);
+}
+
+.assistant-message__actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .assistant-chat__composer {
@@ -1196,8 +1671,8 @@ function getMessageStatusText(status?: ChatMessage['status']) {
   .assistant-panel {
     right: 16px;
     bottom: 84px;
-    width: min(100vw - 16px, 720px);
-    height: min(100vh - 92px, 720px);
+    width: min(100vw - 16px, 960px);
+    height: min(100vh - 92px, 820px);
     flex-direction: column;
   }
 

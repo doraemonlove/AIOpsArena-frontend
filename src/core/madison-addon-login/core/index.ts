@@ -6,6 +6,7 @@ import { loginByEmail, loginByUsername, retrieve } from './api'
 import {
   code,
   setToken,
+  getToken,
   localGet,
   localSet,
   messageUseI18n,
@@ -42,6 +43,7 @@ export class Login extends MadisonAddon {
 
   constructor(madison: Madison) {
     super(madison)
+    this.initializeFromStorage()
 
     madison.routerPromise.addPrecheck(this.precheck, this)
     /** 最先运行登录检查 */
@@ -58,6 +60,10 @@ export class Login extends MadisonAddon {
   async login(options?: LoginOptions): Promise<boolean> {
     if (this.__state === LoginState.LOGGED) return true
     if (!options) {
+      if (this.restoreLoginFromToken()) {
+        return true
+      }
+
       const type = localGet(Login.TYPE_KEY, 'username')
       const loginKey = localGet(Login.LOGIN_KEY, '')
       const passwordEncrypted = localGet(Login.LOGIN_PASSWORD, '')
@@ -103,8 +109,7 @@ export class Login extends MadisonAddon {
     localSet(Login.TYPE_KEY, options.type)
     localSet(Login.LOGIN_KEY, options.key)
     localSet(Login.LOGIN_PASSWORD, passwordEncrypted)
-    const userId = this.resolveUserIdFromToken(data.data.token)
-    const normalizedUserId = this.normalizeUserId(userId || options.key)
+    const normalizedUserId = this.resolveLoginUserId(data.data as Record<string, unknown>)
     if (normalizedUserId) {
       localSet(Login.USER_ID_KEY, normalizedUserId)
     } else {
@@ -205,8 +210,7 @@ export class Login extends MadisonAddon {
           .join('')
       )
       const data = JSON.parse(decoded) as Record<string, unknown>
-      const candidate = data.user_id || data.userId || data.uid || data.id || data.sub
-      return this.normalizeUserId(candidate)
+      return this.extractUserIdFromPayload(data)
     } catch (_) {
       return ''
     }
@@ -214,7 +218,74 @@ export class Login extends MadisonAddon {
 
   private normalizeUserId(value: unknown): string {
     if (value === undefined || value === null) return ''
-    const normalized = String(value).trim()
-    return /^\d+$/.test(normalized) ? normalized : ''
+    return String(value).trim()
+  }
+
+  private resolveLoginUserId(payload: Record<string, unknown>) {
+    const normalizedDirect = this.extractUserIdFromPayload(payload)
+    if (normalizedDirect) return normalizedDirect
+
+    const token = typeof payload.token === 'string' ? payload.token : ''
+    return this.resolveUserIdFromToken(token)
+  }
+
+  private extractUserIdFromPayload(payload: Record<string, unknown>) {
+    const directCandidate =
+      payload.user_id ||
+      payload.userId ||
+      payload.uid ||
+      payload.id ||
+      payload.sub
+
+    const normalizedDirect = this.normalizeUserId(directCandidate)
+    if (normalizedDirect) return normalizedDirect
+
+    const nestedSources = [payload.user, payload.data, payload.profile]
+    for (const source of nestedSources) {
+      if (!source || typeof source !== 'object') continue
+      const candidate =
+        (source as Record<string, unknown>).user_id ||
+        (source as Record<string, unknown>).userId ||
+        (source as Record<string, unknown>).uid ||
+        (source as Record<string, unknown>).id ||
+        (source as Record<string, unknown>).sub
+      const normalized = this.normalizeUserId(candidate)
+      if (normalized) return normalized
+    }
+
+    return ''
+  }
+
+  private restoreLoginFromToken(): boolean {
+    const token = getToken()
+    if (!token) return false
+
+    const normalizedUserId = this.resolveUserIdFromToken(token)
+    if (normalizedUserId) {
+      localSet(Login.USER_ID_KEY, normalizedUserId)
+    } else {
+      localDel(Login.USER_ID_KEY)
+    }
+
+    this.__state = LoginState.LOGGED
+    this.__isLogin.value = true
+    this.__loginPromise.resolve()
+    return true
+  }
+
+  private initializeFromStorage() {
+    if (this.restoreLoginFromToken()) {
+      return
+    }
+
+    const loginKey = localGet(Login.LOGIN_KEY, '') || ''
+    const passwordEncrypted = localGet(Login.LOGIN_PASSWORD, '') || ''
+    if (loginKey && passwordEncrypted) {
+      this.__state = LoginState.READY
+      return
+    }
+
+    this.__state = LoginState.FAILURE
+    this.__loginPromise.resolve()
   }
 }

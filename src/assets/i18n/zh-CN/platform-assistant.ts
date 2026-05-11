@@ -8,6 +8,10 @@ export default {
     NewSession: '新建会话',
     Delete: '删除',
     Cancel: '取消',
+    CancelRun: '取消实验',
+    DeleteRun: '删除实验',
+    AnalyzeResult: '分析结果',
+    AnalyzeFailure: '分析失败原因',
     GoLogin: '去登录',
     Send: '发送'
   },
@@ -39,6 +43,31 @@ export default {
     TipReady: '已同步当前登录身份，可直接发送消息',
     TipMissingIdentity: '当前登录信息不完整，请重新登录后重试'
   },
+  RunPanel: {
+    Title: '会话实验',
+    Subtitle: '当前会话下的实验任务',
+    NoSession: '请先创建或选择会话',
+    Loading: '正在加载当前会话的实验...',
+    Empty: '当前会话下还没有实验任务。',
+    Mode: '模式',
+    Dataset: '数据集',
+    EvaluationStatus: '评估状态',
+    CreatedAt: '创建时间',
+    FinishedAt: '结束时间',
+    CancelTitle: '取消实验',
+    CancelConfirm: '确认提交 run_id={runId} 的取消请求吗？',
+    CancelSubmitted: '已提交取消请求',
+    DeleteTitle: '删除实验',
+    DeleteConfirm: '确认删除 run_id={runId} 的实验吗？',
+    DeleteSuccess: '实验已删除'
+  },
+  RunMessage: {
+    Finished: '实验 run_id={runId} 已完成。你可以点击“分析结果”让助手继续解读。',
+    Failed: '实验 run_id={runId} 运行失败。你可以点击“分析失败原因”查看详情。',
+    Canceled: '实验 run_id={runId} 已取消。',
+    AnalyzeResultPrompt: '请分析当前会话中 run_id={runId} 的实验结果，并给出关键结论。',
+    AnalyzeFailurePrompt: '请分析当前会话中 run_id={runId} 的失败原因，并给出排查建议。'
+  },
   Message: {
     Streaming: '回复中...',
     Error: '回复异常'
@@ -47,6 +76,8 @@ export default {
     ListSessions: '查询会话列表失败',
     CreateSession: '新建会话失败',
     DeleteSession: '删除会话失败',
+    CancelRun: '取消实验失败',
+    DeleteRun: '删除实验失败',
     LoadHistory: '查询历史消息失败',
     ChatFailed: '助手对话失败',
     MissingUserId: '当前登录信息缺少用户标识，请重新登录后重试。',
