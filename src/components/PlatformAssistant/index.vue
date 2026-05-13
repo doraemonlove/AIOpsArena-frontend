@@ -24,7 +24,8 @@ import {
   type AssistantSessionEvent,
   type AssistantSession,
   type AssistantSessionApiItem,
-  type ChatMessage
+  type ChatMessage,
+  type ChatMessageRole
 } from '@/core/madison-addon-platform-assistant'
 import SessionRunPanel from './SessionRunPanel.vue'
 import { useSessionRuns } from './useSessionRuns'
@@ -186,8 +187,7 @@ async function handleCreateSession() {
   isCreatingSession.value = true
   try {
     const response = await createAssistantSession({
-      app_name: PLATFORM_ASSISTANT_APP_NAME,
-      title: t('PlatformAssistant.Session.NewTitle')
+      app_name: PLATFORM_ASSISTANT_APP_NAME
     })
     const data = response.data
     if (!data || data.code !== 0) {
@@ -275,7 +275,7 @@ async function sendMessageText(text: string) {
   const streamGroupId = createMessageId('assistant-stream')
 
   session.messages.push(userMessage)
-  session.title = session.title || text.slice(0, 20) || t('PlatformAssistant.Session.NewTitle')
+  session.title = getSessionTitle(session)
   markSessionHistoryLoaded(session.sessionId)
   if (draft.value.trim() === text) {
     draft.value = ''
@@ -365,7 +365,8 @@ async function loadSessionHistory(sessionId: string, force = false) {
   }
 }
 
-function onInputKeydown(event: KeyboardEvent) {
+function onInputKeydown(event: Event | KeyboardEvent) {
+  if (!(event instanceof KeyboardEvent)) return
   if (event.key !== 'Enter' || event.shiftKey) return
   event.preventDefault()
   sendMessage()
@@ -419,7 +420,7 @@ function appendStreamingParts(sessionId: string, streamGroupId: string, parts: A
   if (!session || !parts.length) return
 
   parts.forEach((part) => {
-    const role = part.kind === 'answer' ? 'assistant' : 'system'
+    const role: ChatMessageRole = part.kind === 'answer' ? 'assistant' : 'system'
     const lastMessage = findLatestStreamMessage(sessionId, streamGroupId)
     const isSameKind =
       !!lastMessage &&
@@ -800,13 +801,12 @@ function extractUserIdFromPayload(payload: Record<string, unknown>) {
   return ''
 }
 
-function normalizeSessionHistoryMessages(detail: AssistantSessionDetail) {
+function normalizeSessionHistoryMessages(detail: AssistantSessionDetail): ChatMessage[] {
   return detail.events
     .flatMap((event, index) => normalizeSessionEventToMessages(event, index))
-    .filter((item): item is ChatMessage => !!item)
 }
 
-function normalizeSessionEventToMessages(event: AssistantSessionEvent, index: number) {
+function normalizeSessionEventToMessages(event: AssistantSessionEvent, index: number): ChatMessage[] {
   const role = normalizeEventRole(event)
   if (!role) return []
 
@@ -826,7 +826,7 @@ function normalizeSessionEventToMessages(event: AssistantSessionEvent, index: nu
   }))
 }
 
-function normalizeEventRole(event: AssistantSessionEvent) {
+function normalizeEventRole(event: AssistantSessionEvent): ChatMessageRole | '' {
   const rawRole =
     event.role ||
     event.author ||
@@ -877,9 +877,7 @@ function extractEventParts(event: AssistantSessionEvent) {
       const args = formatJsonBlock(functionCall.args)
       parts.push({
         kind: 'tool-call',
-        content: args
-          ? `工具调用: ${name}\n${args}`
-          : `工具调用: ${name}`
+        content: args ? `${name}\n${args}` : name
       })
     }
 
@@ -889,9 +887,7 @@ function extractEventParts(event: AssistantSessionEvent) {
       const response = formatJsonBlock(functionResponse.response)
       parts.push({
         kind: 'tool-response',
-        content: response
-          ? `工具返回: ${name}\n${response}`
-          : `工具返回: ${name}`
+        content: response ? `${name}\n${response}` : name
       })
     }
   })
@@ -962,9 +958,14 @@ function resolveUserIdFromToken() {
 }
 
 function getSessionTitle(session: AssistantSession) {
-  if (session.title?.trim()) return session.title
+  const sessionId = session.sessionId?.trim()
+  const normalizedTitle = session.title?.trim() || ''
+  if (normalizedTitle && !['新会话', 'new session'].includes(normalizedTitle.toLowerCase())) {
+    return normalizedTitle
+  }
+  if (sessionId) return sessionId
   const firstUserMessage = session.messages.find((item) => item.role === 'user')?.content || ''
-  return firstUserMessage.slice(0, 20) || t('PlatformAssistant.Session.NewTitle')
+  return firstUserMessage.slice(0, 20) || ''
 }
 
 function formatSessionTime(session: AssistantSession) {
@@ -1010,11 +1011,11 @@ function getMessageStatusText(status?: ChatMessage['status']) {
 
 function getMessageKindLabel(messageItem: ChatMessage) {
   const kind = messageItem.meta?.kind
-  if (kind === 'thought') return '思考'
-  if (kind === 'tool-call') return '工具调用'
-  if (kind === 'tool-response') return '工具返回'
-  if (messageItem.role === 'assistant') return '助手'
-  if (messageItem.role === 'system') return '系统'
+  if (kind === 'thought') return t('PlatformAssistant.MessageKind.Thought')
+  if (kind === 'tool-call') return t('PlatformAssistant.MessageKind.ToolCall')
+  if (kind === 'tool-response') return t('PlatformAssistant.MessageKind.ToolResponse')
+  if (messageItem.role === 'assistant') return t('PlatformAssistant.MessageKind.Assistant')
+  if (messageItem.role === 'system') return t('PlatformAssistant.MessageKind.System')
   return ''
 }
 </script>

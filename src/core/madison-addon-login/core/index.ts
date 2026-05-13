@@ -109,7 +109,7 @@ export class Login extends MadisonAddon {
     localSet(Login.TYPE_KEY, options.type)
     localSet(Login.LOGIN_KEY, options.key)
     localSet(Login.LOGIN_PASSWORD, passwordEncrypted)
-    const normalizedUserId = this.resolveLoginUserId(data.data as Record<string, unknown>)
+    const normalizedUserId = this.resolveLoginUserId(data.data as unknown as Record<string, unknown>)
     if (normalizedUserId) {
       localSet(Login.USER_ID_KEY, normalizedUserId)
     } else {

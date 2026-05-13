@@ -42,11 +42,18 @@ export function normalizeAssistantSession(
   item: AssistantSessionApiItem,
   fallbackId?: number
 ): AssistantSession {
+  const normalizedSessionId = String(item.session_id || '').trim()
+  const normalizedTitle = String(item.title || '').trim()
+  const resolvedTitle =
+    normalizedTitle && !['新会话', 'new session'].includes(normalizedTitle.toLowerCase())
+      ? normalizedTitle
+      : normalizedSessionId
+
   return {
     id: normalizeSessionRecordId(item, fallbackId),
-    sessionId: item.session_id,
+    sessionId: normalizedSessionId,
     appName: item.app_name,
-    title: item.title || '新会话',
+    title: resolvedTitle,
     state: item.state,
     lastUpdateTime: item.last_update_time,
     createdAt: item.created_at,
@@ -274,7 +281,7 @@ export function extractStreamParts(payload: unknown): AssistantStreamPart[] {
           const args = formatJsonBlock(functionCall.args)
           parts.push({
             kind: 'tool-call',
-            content: args ? `工具调用: ${name}\n${args}` : `工具调用: ${name}`
+            content: args ? `${name}\n${args}` : name
           })
         }
 
@@ -284,7 +291,7 @@ export function extractStreamParts(payload: unknown): AssistantStreamPart[] {
           const response = formatJsonBlock(functionResponse.response)
           parts.push({
             kind: 'tool-response',
-            content: response ? `工具返回: ${name}\n${response}` : `工具返回: ${name}`
+            content: response ? `${name}\n${response}` : name
           })
         }
       }

@@ -1,5 +1,5 @@
 {
-  "extends": "@tsconfig/node22/tsconfig.json",
+  "extends": "@vue/tsconfig/tsconfig.json",
   "include": [
     "vite.config.*",
     "vitest.config.*",
@@ -12,6 +12,7 @@
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
 
+    "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "types": ["node"]

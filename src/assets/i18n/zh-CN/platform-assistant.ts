@@ -72,6 +72,13 @@ export default {
     Streaming: '回复中...',
     Error: '回复异常'
   },
+  MessageKind: {
+    Thought: '思考',
+    ToolCall: '工具调用',
+    ToolResponse: '工具返回',
+    Assistant: '助手',
+    System: '系统'
+  },
   Errors: {
     ListSessions: '查询会话列表失败',
     CreateSession: '新建会话失败',

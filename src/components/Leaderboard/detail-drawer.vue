@@ -42,7 +42,7 @@ const basicEntries = computed(() => {
     ['created_at', formatTime(props.detail.created_at)],
     ['updated_at', formatTime(props.detail.updated_at)],
     ['description', props.detail.description || '--']
-  ]
+  ] as Array<[string, string | number]>
 })
 
 function formatTime(value?: string | null) {

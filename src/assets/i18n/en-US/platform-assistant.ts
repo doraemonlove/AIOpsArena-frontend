@@ -72,6 +72,13 @@ export default {
     Streaming: 'Responding...',
     Error: 'Response error'
   },
+  MessageKind: {
+    Thought: 'Thought',
+    ToolCall: 'Tool Call',
+    ToolResponse: 'Tool Response',
+    Assistant: 'Assistant',
+    System: 'System'
+  },
   Errors: {
     ListSessions: 'Failed to load session list',
     CreateSession: 'Failed to create session',

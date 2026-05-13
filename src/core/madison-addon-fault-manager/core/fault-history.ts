@@ -105,13 +105,13 @@ class OnedayFaultsMap extends MadisonItemMap<string, OnedayFaults> {
   }
 
   display() {
-    const values = this.values()
-    values.forEach(onedayFaults => onedayFaults.display())
+    const values = Array.from(this.values())
+    values.forEach((onedayFaults) => onedayFaults.display())
   }
 
   hide() {
-    const values = this.values()
-    values.forEach(onedayFaults => onedayFaults.hide())
+    const values = Array.from(this.values())
+    values.forEach((onedayFaults) => onedayFaults.hide())
   }
 }
 

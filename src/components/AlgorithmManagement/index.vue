@@ -352,10 +352,10 @@ async function handleToggleVisibility(item: AlgorithmItem) {
 async function handleDownloadTemplate() {
   try {
     const res = await downloadAlgorithmTemplate()
-    if (!res || !res.data) {
+    const blob = res?.data
+    if (!(blob instanceof Blob)) {
       throw new Error(t('Algorithm.Message.DownloadTemplateFailed'))
     }
-    const blob = res.data
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

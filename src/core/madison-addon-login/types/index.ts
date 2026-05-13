@@ -6,6 +6,7 @@ export interface LoginOptions {
 
 export interface LoginRes {
   token: string
+  [key: string]: unknown
 }
 
 export enum LoginState {

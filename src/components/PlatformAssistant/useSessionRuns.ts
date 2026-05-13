@@ -131,7 +131,7 @@ export function useSessionRuns(options: {
       schedulePolling(sessionRecordId)
       return runs
     } catch (error) {
-      const errorText = error instanceof Error ? error.message : '查询会话实验失败'
+      const errorText = error instanceof Error ? error.message : 'Failed to load session runs'
       sessionRunErrors.value = {
         ...sessionRunErrors.value,
         [sessionRecordId]: errorText
