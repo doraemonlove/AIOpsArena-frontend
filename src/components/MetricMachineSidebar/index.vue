@@ -1,34 +1,32 @@
 <script setup lang="ts">
 import { Madison } from '@/core/madison'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import s2e from './s2e.vue'
-import { ArrowLeft } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
-const firstIn = ref(true)
-const sidebartrigger = ref<HTMLDivElement | null>(null)
 const route = useRoute()
 const madison = Madison.getInstance()
 const machine = madison.metric.machine
-const namesapce = machine.namespace
+const namespace = machine.namespace
 const type = machine.type
-const disable = machine.isCreatingQueryTask
 const selectedMetricName = machine.selectedMetricName
 const nodeOrPodList = machine.nodeOrPodList
 
 const metricNameMachine = computed(() => {
-  const ins =  madison.metric.getMetricName(namesapce.value)
+  const ins = madison.metric.getMetricName(namespace.value)
   if (ins) return ins.machine
   return null
 })
+
 const metricName = computed(() => {
   if (metricNameMachine.value) {
     return metricNameMachine.value[type.value]
   }
   return null
 })
+
 const metricNameData = computed(() => {
   if (metricName.value) {
     return metricName.value.data
@@ -36,256 +34,183 @@ const metricNameData = computed(() => {
   return []
 })
 
-const show = ref(false)
-
-onMounted(() => {
-  if (sidebartrigger.value !== null) {
-    sidebartrigger.value.addEventListener('mouseenter', enterTrigger)
-  }
+const currentMetricName = computed(() => (route.query.metricName as string) || '')
+const currentTarget = computed(() => {
+  return type.value === 'node' ? route.query.node : route.query.pod
 })
-
-onBeforeUnmount(() => {
-  if (sidebartrigger.value !== null) {
-    sidebartrigger.value.removeEventListener('mouseenter', enterTrigger)
-  }
-})
-
-function enterTrigger() {
-  firstIn.value = false
-}
 
 function getMetricNameStr(metricName: string, path: string) {
-  if (path !== '') {
-    if (selectedMetricName.value.has(metricName)) {
-      const i = path.indexOf(metricName)
-      return path.slice(0, i) + path.slice(i + metricName.length)
-    } else {
-      return path + ',' + metricName
-    }
-  } else {
-    if (selectedMetricName.value.has(metricName)) {
-      return ''
-    } else {
-      return metricName
-    }
+  const metricList = path.split(',').filter((item) => item !== '' && item !== metricName)
+  if (!selectedMetricName.value.has(metricName)) {
+    metricList.push(metricName)
   }
+  return metricList.join(',')
 }
 
-function addAll(metricName: string[], path: string) {
-  const set = new Set()
-  metricName.forEach((mn) => {
-    if (path.indexOf(mn) === -1) {
-      set.add(mn)
-    }
-  })
-  const add = Array.from(set.values()).join(',')
-  return path + ',' + add
+function addAll(metricNames: string[], path: string) {
+  const set = new Set(path.split(',').filter(Boolean))
+  metricNames.forEach((metricName) => set.add(metricName))
+  return Array.from(set).join(',')
 }
 
-function removeAll(metricName: string[], path: string) {
-  const set = new Set(path.split(','))
-  metricName.forEach((mn) => {
-    if (path.indexOf(mn) !== -1) {
-      set.delete(mn)
-    }
-  })
+function removeAll(metricNames: string[], path: string) {
+  const set = new Set(path.split(',').filter(Boolean))
+  metricNames.forEach((metricName) => set.delete(metricName))
   return Array.from(set).join(',')
 }
 
 function addAllAll() {
   const list: string[] = []
-  metricNameData.value.forEach((mnd) => {
-    mnd.metricName.forEach((mn) => {
-      list.push(mn)
+  metricNameData.value.forEach((group) => {
+    group.metricName.forEach((metricName) => {
+      list.push(metricName)
     })
   })
-  return list.join(',')
+  return Array.from(new Set(list)).join(',')
 }
-
 </script>
 
 <template>
-  <div
-    class="fixed top-1/2 -translate-y-1/2 cursor-pointer platform-mms-pointer z-10 "
-    @click="show = !show"
+  <aside
+    class="h-full overflow-hidden rounded-2xl border border-light-border bg-light-fill/70 dark:border-light-border-dark dark:bg-light-fill-dark/70 backdrop-blur"
   >
-    <div
-      class="absolute opacity-[0.8] w-40 h-40 top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 blur-[60px] -z-10 rounded-full pointer-events-none"
-      :class="{'!bg-[#FF87C8]': firstIn}"
-    />
-    <div
-      ref="sidebartrigger"
-      class="bg-light-fill dark:bg-light-fill-dark rounded-r-md pt-6 pb-6 pl-[2px] pr-[2px] text-[#FF87C8]  border-t border-r border-b border-light-border dark:border-light-border-dark"
-    >
-      <el-icon>
-        <ArrowRightBold />
-      </el-icon>
-    </div>
-    <el-drawer
-      v-model="show"
-      direction="ltr"
-      append-to-body
-      :lock-scroll="false"
-      :show-close="false"
-      :with-header="false"
-      size="450"
-      body-class="!p-3"
-    >
-      <div class="flex flex-col gap-4">
-        <div>
-          <router-link :to="{ name: 'data' }">
-            <el-button :icon="ArrowLeft">
-              {{ t('Data.Metric.Back') }}
-            </el-button>
-          </router-link>
+    <div class="h-full flex flex-col">
+      <div class="border-b border-light-border p-4 dark:border-light-border-dark">
+        <router-link :to="{ name: 'data' }">
+          <el-button text>
+            {{ t('Data.Metric.Back') }}
+          </el-button>
+        </router-link>
+        <div class="mt-3">
+          <div class="text-xs uppercase tracking-[0.2em] text-light-2 dark:text-light-2">
+            {{ t('Data.Metric.SelectedType') }}
+          </div>
+          <div class="mt-1 text-xl font-semibold">
+            {{ type }}
+          </div>
         </div>
-        <div>
-          <span class="text-lg">
-            {{ t('Data.Metric.SelectedType') }}: {{ type }}
-          </span>
-        </div>
-        <div>
-          <el-popover
-            placement="right"
-            :width="400"
-            trigger="hover"
-          >
-            <template #reference>
-              <div class="w-full cursor-pointer flex justify-between pt-2 pb-2 items-center hover:text-moonlight-500">
-                <span class="text-lg">
-                  {{ t('Data.Metric.Change') }} {{ type }}
-                </span>
-                <el-icon>
-                  <ArrowRightBold />
-                </el-icon>
-              </div>
-            </template>
-            <div
-              class="flex flex-col gap-2 text-lg"
-              style="max-height: calc(100vh - 50px); overflow: auto;"
-            >
-              <router-link
-                v-for="l in nodeOrPodList"
-                :key="l.name"
-                class="hover:underline flex justify-between items-center hover:text-moonlight-500"
-                :class="{'text-moonlight-500': l.name === (l.type === 'node' ? route.query.node : route.query.pod)}"
-                :to="l.getRoute(route)"
-              >
-                <span>{{ l.name }}</span>
-                <span v-show="l.name === (l.type === 'node' ? route.query.node : route.query.pod)">Now</span>
-              </router-link>
-            </div>
-          </el-popover>
-        </div>
-        <div>
-          <span class="text-lg">
-            {{ t('Data.Metric.SelectMetricName') }}
-          </span>
-        </div>
-        <div>
-          <div class="flex justify-between items-center">
+      </div>
+
+      <div class="flex-1 overflow-auto p-4 space-y-6">
+        <section class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-base font-medium">{{ t('Data.Metric.Change') }} {{ type }}</span>
+            <span class="text-xs text-light-2 dark:text-light-2">
+              {{ nodeOrPodList.length }}
+            </span>
+          </div>
+          <div class="max-h-48 overflow-auto rounded-xl border border-light-border dark:border-light-border-dark">
             <router-link
-              class="hover:underline flex justify-between items-center text-moonlight-500"
-              :to="{ name: route.name, query: {
-                ...route.query,
-                metricName: addAllAll()
-              }}"
+              v-for="item in nodeOrPodList"
+              :key="item.name"
+              class="flex items-center justify-between px-3 py-2 text-sm transition-colors hover:bg-moonlight-500/10 hover:text-moonlight-500"
+              :class="{
+                'bg-moonlight-500/10 text-moonlight-500': item.name === currentTarget
+              }"
+              :to="item.getRoute(route)"
+            >
+              <span class="truncate">{{ item.name }}</span>
+              <span
+                v-if="item.name === currentTarget"
+                class="ml-3 text-xs uppercase tracking-wide"
+              >
+                Now
+              </span>
+            </router-link>
+          </div>
+        </section>
+
+        <section class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-base font-medium">{{ t('Data.Metric.SelectMetricName') }}</span>
+            <span class="text-xs text-light-2 dark:text-light-2">
+              {{ selectedMetricName.size }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <router-link
+              class="text-moonlight-500 hover:underline"
+              :to="{ name: route.name, query: { ...route.query, metricName: addAllAll() } }"
             >
               {{ t('Data.Metric.AddAll') }}
             </router-link>
             <router-link
-              class="hover:underline flex justify-between items-center text-danger"
-              :to="{ name: route.name, query: {
-                ...route.query,
-                metricName: ''
-              }}"
+              class="text-danger hover:underline"
+              :to="{ name: route.name, query: { ...route.query, metricName: '' } }"
             >
               {{ t('Data.Metric.RemoveAll') }}
             </router-link>
           </div>
-          <el-popover
-            v-for="mnd in metricNameData"
-            :key="mnd.name"
-            placement="right"
-            :width="600"
-            trigger="hover"
-          >
-            <template #reference>
-              <div class="w-full cursor-pointer flex justify-between pt-2 pb-2 items-center hover:text-moonlight-500">
-                <span class="text-xl">{{ mnd.name }}</span>
-                <el-icon>
-                  <ArrowRightBold />
-                </el-icon>
-              </div>
-            </template>
-            <div
-              class="flex flex-col gap-2 text-lg"
-              style="max-height: calc(100vh - 50px); overflow: auto;"
+
+          <div class="space-y-4">
+            <section
+              v-for="group in metricNameData"
+              :key="group.name"
+              class="rounded-xl border border-light-border dark:border-light-border-dark"
             >
-              <div class="flex justify-between items-center">
+              <div class="flex items-center justify-between px-3 py-3 border-b border-light-border dark:border-light-border-dark">
+                <div>
+                  <div class="text-sm font-semibold">
+                    {{ group.name }}
+                  </div>
+                  <div class="text-xs text-light-2 dark:text-light-2">
+                    {{ group.metricName.length }} metrics
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 text-sm">
+                  <router-link
+                    class="text-moonlight-500 hover:underline"
+                    :to="{ name: route.name, query: {
+                      ...route.query,
+                      metricName: addAll(group.metricName, currentMetricName)
+                    } }"
+                  >
+                    {{ t('Data.Metric.AddAll') }}
+                  </router-link>
+                  <router-link
+                    class="text-danger hover:underline"
+                    :to="{ name: route.name, query: {
+                      ...route.query,
+                      metricName: removeAll(group.metricName, currentMetricName)
+                    } }"
+                  >
+                    {{ t('Data.Metric.RemoveAll') }}
+                  </router-link>
+                </div>
+              </div>
+
+              <div class="max-h-72 overflow-auto p-2">
                 <router-link
-                  class="hover:underline flex justify-between items-center text-moonlight-500"
+                  v-for="metric in group.metricName"
+                  :key="metric"
+                  class="flex items-center justify-between rounded-lg px-2 py-2 text-sm transition-colors hover:bg-moonlight-500/10"
+                  :class="selectedMetricName.has(metric)
+                    ? 'bg-moonlight-500/10 text-moonlight-500'
+                    : 'hover:text-moonlight-500'"
                   :to="{ name: route.name, query: {
                     ...route.query,
-                    metricName: addAll(mnd.metricName, route.query.metricName as string || '')
-                  }}"
+                    metricName: getMetricNameStr(metric, currentMetricName)
+                  } }"
                 >
-                  {{ t('Data.Metric.AddAll') }}
-                </router-link>
-                <span>
-                  {{ mnd.name }}
-                </span>
-                <router-link
-                  class="hover:underline flex justify-between items-center text-danger"
-                  :to="{ name: route.name, query: {
-                    ...route.query,
-                    metricName: removeAll(mnd.metricName, route.query.metricName as string || '')
-                  }}"
-                >
-                  {{ t('Data.Metric.RemoveAll') }}
+                  <span class="pr-4 break-all">{{ metric }}</span>
+                  <span class="shrink-0 text-xs uppercase tracking-wide">
+                    {{ selectedMetricName.has(metric) ? t('Data.Metric.Remove') : t('Data.Metric.Add') }}
+                  </span>
                 </router-link>
               </div>
-              <router-link
-                v-for="mn in mnd.metricName"
-                :key="mn"
-                class="hover:underline flex justify-between items-center"
-                :class="{ 'hover:text-danger': selectedMetricName.has(mn), 'hover:text-moonlight-500': !selectedMetricName.has(mn) }"
-                :to="{ name: route.name, query: {
-                  ...route.query,
-                  metricName: getMetricNameStr(mn, route.query.metricName as string || '')}}"
-              >
-                <span>{{ mn }}</span>
-                <span>{{ selectedMetricName.has(mn) ? t('Data.Metric.Remove') : t('Data.Metric.Add') }}</span>
-              </router-link>
-            </div>
-          </el-popover>
-        </div>
-        <div>
-          <span class="text-lg">
-            {{ t('Data.Metric.SelectTimeInterval') }}
-          </span>
-        </div>
-        <s2e
-          :manager="machine"
-          :query="true"
-          size="default"
-        />
+            </section>
+          </div>
+        </section>
+
+        <section class="space-y-3">
+          <span class="text-base font-medium">{{ t('Data.Metric.SelectTimeInterval') }}</span>
+          <s2e
+            :manager="machine"
+            :query="true"
+            size="default"
+          />
+        </section>
       </div>
-    </el-drawer>
-  </div>
+    </div>
+  </aside>
 </template>
-
-<style>
-.platform-mms-select > .el-select__wrapper {
-  border-radius: 0px;
-}
-
-.platform-mms-pointer > .absolute {
-  transition: all 0.6s;
-  background-color: #FF87C800;
-}
-.platform-mms-pointer:hover > .absolute {
-  transition: all 0.6s;
-  background-color: #FF87C8;
-}
-</style>

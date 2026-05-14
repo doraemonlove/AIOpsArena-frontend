@@ -2,15 +2,34 @@ export interface MetricNameOptions {
   namespace: string
 }
 
+export interface MetricCategoryMap {
+  [groupName: string]: string[]
+}
+
 export interface MetricNameRes {
   machine: {
-    node: Record<string, string[]>
-    pod: Record<string, string[]>
+    node: MetricCategoryMap
+    pod: MetricCategoryMap
   }
   service: {
     istio: string[]
   }
   business: {}
+}
+
+export interface MetricNameApiRes {
+  infra_node?: string[]
+  infra_pod?: string[]
+  service_istio?: string[]
+  tidb_core?: string[]
+  machine?: {
+    node: MetricCategoryMap
+    pod: MetricCategoryMap
+  }
+  service?: {
+    istio: string[]
+  }
+  business?: {}
 }
 
 export interface PodListOptions {

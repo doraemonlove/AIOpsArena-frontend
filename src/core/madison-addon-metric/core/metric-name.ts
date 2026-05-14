@@ -1,5 +1,5 @@
 import { deepClone } from '@/core/madison/utils'
-import type { MetricNameRes } from '../types'
+import type { MetricNameApiRes, MetricNameRes } from '../types'
 
 export class MetricName {
   private __metricName: MetricNameRes
@@ -13,9 +13,36 @@ export class MetricName {
     return deepClone(this.__metricName)
   }
 
-  constructor(data: MetricNameRes) {
-    this.__metricName = data
-    this.__machine = new MachineMetric(data.machine)
+  constructor(data: MetricNameApiRes) {
+    const normalized = normalizeMetricName(data)
+    this.__metricName = normalized
+    this.__machine = new MachineMetric(normalized.machine)
+  }
+}
+
+function normalizeMetricName(data: MetricNameApiRes): MetricNameRes {
+  if (data.machine) {
+    return {
+      machine: {
+        node: data.machine.node || {},
+        pod: data.machine.pod || {}
+      },
+      service: {
+        istio: data.service?.istio || []
+      },
+      business: data.business || {}
+    }
+  }
+
+  return {
+    machine: {
+      node: data.infra_node ? { infra_node: data.infra_node } : {},
+      pod: data.infra_pod ? { infra_pod: data.infra_pod } : {}
+    },
+    service: {
+      istio: data.service_istio || []
+    },
+    business: data.tidb_core ? { tidb_core: data.tidb_core } : {}
   }
 }
 
