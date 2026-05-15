@@ -2,14 +2,16 @@
 import { Madison } from '@/core/madison'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
-defineProps<{
+const props = defineProps<{
   title: string
   description: string
   emptyHint?: string
 }>()
 
 const route = useRoute()
+const { t } = useI18n()
 const madison = Madison.getInstance()
 const machine = madison.metric.machine
 const namespace = machine.namespace
@@ -50,17 +52,17 @@ function clearAll() {
       <div class="mb-4 flex items-center justify-between">
         <div>
           <div class="text-xs uppercase tracking-[0.24em] text-light-2 dark:text-light-2">
-            Metrics
+            {{ t('Data.Sidebar.Metrics') }}
           </div>
           <div class="mt-1 text-xl font-semibold">
-            {{ title }}
+            {{ props.title }}
           </div>
         </div>
         <router-link
           class="text-sm text-danger hover:underline"
           :to="{ name: route.name, query: { ...route.query, metricName: clearAll() } }"
         >
-          Clear
+          {{ t('Data.MetricsMachine.Inspector.Clear') }}
         </router-link>
       </div>
 
@@ -72,13 +74,13 @@ function clearAll() {
         <div class="flex items-center justify-between border-b border-light-border px-3 py-3 dark:border-light-border-dark">
           <div>
             <div class="text-sm font-medium">{{ group.name }}</div>
-            <div class="text-xs text-light-2 dark:text-light-2">{{ group.metricName.length }} metrics</div>
+            <div class="text-xs text-light-2 dark:text-light-2">{{ t('Data.MetricsMachine.Inspector.MetricsCount', { count: group.metricName.length }) }}</div>
           </div>
           <router-link
             class="text-sm text-moonlight-500 hover:underline"
             :to="{ name: route.name, query: { ...route.query, metricName: addAll(group.metricName, currentMetricName) } }"
           >
-            Add all
+            {{ t('Data.MetricsMachine.Inspector.AddAll') }}
           </router-link>
         </div>
 
@@ -92,7 +94,9 @@ function clearAll() {
           >
             <span class="pr-3 break-all">{{ metric }}</span>
             <span class="shrink-0 text-xs uppercase tracking-wide">
-              {{ selectedMetricName.has(metric) ? 'Remove' : 'Add' }}
+              {{ selectedMetricName.has(metric)
+                ? t('Data.MetricsMachine.Inspector.Remove')
+                : t('Data.MetricsMachine.Inspector.Add') }}
             </span>
           </router-link>
         </div>

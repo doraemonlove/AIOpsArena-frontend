@@ -6,9 +6,11 @@ import type { TraceDetail as TraceDetailMadison } from '@/core/madison-addon-tra
 import search from './search.vue'
 import QueryTaskList from '@/components/QueryTaskList/index.vue'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const id = route.params.id as string
+const { t } = useI18n()
 const madison = useMadison()
 const trace = madison.trace
 const detail = trace.data
@@ -45,11 +47,11 @@ const isSearchPage = computed(() => route.name === 'tracesearch')
         <span
           v-show="detail?.status === MadisonDataQueryTaskStatus.SUCCESS && detail?.data !== null && detail?.data.children.length === 0"
           class="text-moonlight-500 text-2xl"
-        >No data</span>
+        >{{ t('Data.Trace.NoData') }}</span>
         <span
           v-show="detail?.status === MadisonDataQueryTaskStatus.ERROR"
           class="text-red-500 text-2xl"
-        >ERROR</span>
+        >{{ t('Data.Common.Error') }}</span>
       </div>
     </div>
     <QueryTaskList

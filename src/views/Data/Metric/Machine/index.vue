@@ -3,7 +3,9 @@ import MetricMachineSidebar from '@/components/MetricMachineSidebar/index.vue'
 import { Madison } from '@/core/madison'
 import chart from './chart.vue'
 import loading from './loading.vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const madison = Madison.getInstance()
 const machine = madison.metric.machine
 const data = machine.data
@@ -35,7 +37,7 @@ const data = machine.data
           v-if="data.length === 0"
           class="flex min-h-[500px] w-full items-center justify-center rounded-2xl border border-dashed border-light-border bg-light-fill/30 px-10 text-center text-2xl dark:border-light-border-dark dark:bg-light-fill-dark/30"
         >
-          <span>Select metrics from the left sidebar to start exploring charts</span>
+          <span>{{ t('Data.MetricsMachine.Legacy.SelectMetricsHint') }}</span>
         </div>
       </div>
     </div>

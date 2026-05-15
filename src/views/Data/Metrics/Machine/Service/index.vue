@@ -5,8 +5,10 @@ import ChartsBoard from '../shared/ChartsBoard.vue'
 import * as echarts from 'echarts'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
+const { t } = useI18n()
 const madison = Madison.getInstance()
 const namespace = madison.namespace.queryNamespace
 const topology = madison.metrics.machine.pod.topology
@@ -85,13 +87,13 @@ async function renderServiceGraph() {
     backgroundColor: 'transparent',
     tooltip: {
       formatter: (params: any) => {
-        if (params.dataType === 'edge') return `${params.data.source} calls ${params.data.target}`
+        if (params.dataType === 'edge') return t('Data.MetricsMachine.Service.GraphCallEdge', { source: params.data.source, target: params.data.target })
         const service = topologyList.value.find((item) => item.name === params.name)
         if (!service) return params.name
         return [
           `<strong>${service.name}</strong>`,
-          `${service.instances.length} pods`,
-          `${service.calls.length} downstream calls`
+          t('Data.MetricsMachine.Service.PodsCount', { count: service.instances.length }),
+          t('Data.MetricsMachine.Service.DownstreamCallsCount', { count: service.calls.length })
         ].join('<br/>')
       }
     },
@@ -207,7 +209,7 @@ onBeforeUnmount(() => {
             :to="{ name: route.name, query: { ...route.query, namespace: namespace || 'unknown', service: undefined, metricName: route.query.metricName, endTime: route.query.endTime, range: route.query.range, startTime: undefined } }"
             class="rounded-full bg-white/80 px-3 py-1 transition hover:text-moonlight-500 dark:bg-black/10"
           >
-            Services
+            {{ t('Data.MetricsMachine.Service.Plural') }}
           </router-link>
           <span>/</span>
           <span class="rounded-full bg-moonlight-500/10 px-3 py-1 text-moonlight-500">
@@ -216,16 +218,13 @@ onBeforeUnmount(() => {
         </div>
         <div class="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div class="text-xs uppercase tracking-[0.24em] text-light-2 dark:text-light-2">
-              Service Workspace
-            </div>
-            <div class="mt-2 text-3xl font-semibold">{{ selectedService.name }}</div>
-            <div class="mt-2 text-sm text-light-2 dark:text-light-2">
-              Inspect service-level request, latency, and dependency signals without keeping the topology list open.
+            <div class="text-3xl font-semibold">{{ selectedService.name }}</div>
+            <div class="mt-3 text-sm text-light-2 dark:text-light-2">
+              {{ t('Data.MetricsMachine.Service.WorkspaceDescription') }}
             </div>
           </div>
           <div class="rounded-2xl bg-white/80 px-4 py-3 text-right dark:bg-black/10">
-            <div class="text-xs uppercase tracking-[0.2em] text-light-2 dark:text-light-2">Pods</div>
+            <div class="text-xs uppercase tracking-[0.2em] text-light-2 dark:text-light-2">{{ t('Data.MetricsMachine.Common.Pods') }}</div>
             <div class="mt-2 text-2xl font-semibold">{{ selectedService.instances.length }}</div>
           </div>
         </div>
@@ -236,33 +235,35 @@ onBeforeUnmount(() => {
           <div class="rounded-2xl border border-light-border bg-light-fill/50 p-5 dark:border-light-border-dark dark:bg-light-fill-dark/50">
             <div class="mb-4 flex items-center justify-between">
               <div>
-                <div class="text-xs uppercase tracking-[0.24em] text-light-2 dark:text-light-2">
-                  Attached Pods
-                </div>
-                <div class="text-2xl font-semibold">Workloads Behind This Service</div>
+              <div class="text-xs uppercase tracking-[0.24em] text-light-2 dark:text-light-2">
+                  {{ t('Data.MetricsMachine.Service.AttachedPods') }}
+              </div>
+                <div class="text-2xl font-semibold">{{ t('Data.MetricsMachine.Service.WorkloadsBehindService') }}</div>
               </div>
               <div class="text-sm text-light-2 dark:text-light-2">
-                {{ selectedService.instances.length }} pods
+                {{ t('Data.MetricsMachine.Service.PodsCount', { count: selectedService.instances.length }) }}
               </div>
             </div>
 
             <div
               v-if="selectedService.instances.length > 0"
-              class="flex flex-wrap gap-3"
+              class="flex flex-wrap gap-4"
             >
               <router-link
                 v-for="pod in visiblePods"
                 :key="pod"
                 :to="{ name: 'metricsmachinepod', query: { ...route.query, namespace: namespace || 'unknown', pod, service: undefined } }"
-                class="rounded-full border border-light-border bg-white/80 px-4 py-2 text-sm transition hover:border-moonlight-500 hover:text-moonlight-500 dark:border-light-border-dark dark:bg-black/10"
+                class="rounded-full border border-light-border bg-white/80 px-5 py-3 text-sm leading-5 transition hover:border-moonlight-500 hover:text-moonlight-500 dark:border-light-border-dark dark:bg-black/10"
               >
-                {{ pod }}
+                <span class="break-all">
+                  {{ pod }}
+                </span>
               </router-link>
               <div
                 v-if="hiddenPodCount > 0"
-                class="rounded-full border border-dashed border-light-border px-4 py-2 text-sm text-light-2 dark:border-light-border-dark dark:text-light-2"
+                class="rounded-full border border-dashed border-light-border px-5 py-3 text-sm text-light-2 dark:border-light-border-dark dark:text-light-2"
               >
-                +{{ hiddenPodCount }} more
+                {{ t('Data.MetricsMachine.Common.MoreCount', { count: hiddenPodCount }) }}
               </div>
             </div>
 
@@ -270,60 +271,57 @@ onBeforeUnmount(() => {
               v-else
               class="flex min-h-[160px] items-center justify-center text-light-2 dark:text-light-2"
             >
-              No pods found for this service
+              {{ t('Data.MetricsMachine.Service.NoPodsForService') }}
             </div>
           </div>
 
         </section>
 
         <MetricInspector
-          title="Service Metrics"
-          description="Select service metrics for this service."
-          empty-hint="Choose a service card to start"
+          :title="t('Data.MetricsMachine.Service.MetricsTitle')"
+          :description="t('Data.MetricsMachine.Service.MetricsDescription')"
+          :empty-hint="t('Data.MetricsMachine.Service.ChooseServiceHint')"
         />
       </div>
 
-      <ChartsBoard empty-message="Add one or more service metrics to render charts for this selected service." />
+      <ChartsBoard :empty-message="t('Data.MetricsMachine.Service.EmptyChartMessage')" />
     </template>
 
     <template v-else>
-      <div class="mb-6 rounded-2xl border border-light-border bg-light-fill/50 p-5 dark:border-light-border-dark dark:bg-light-fill-dark/50">
-        <div class="flex items-end justify-between gap-4">
+      <div class="mb-8 rounded-2xl border border-light-border bg-light-fill/50 p-7 dark:border-light-border-dark dark:bg-light-fill-dark/50">
+        <div class="flex min-h-[132px] items-end justify-between gap-6">
           <div>
-            <div class="text-xs uppercase tracking-[0.24em] text-light-2 dark:text-light-2">
-              Service
-            </div>
-            <div class="text-3xl font-semibold">Service Directory</div>
-            <div class="mt-2 text-sm text-light-2 dark:text-light-2">
-              Click a service node in the call graph to open its metrics workspace.
+            <div class="text-3xl font-semibold">{{ t('Data.MetricsMachine.Service.DirectoryTitle') }}</div>
+            <div class="mt-3 max-w-3xl text-sm leading-6 text-light-2 dark:text-light-2">
+              {{ t('Data.MetricsMachine.Service.DirectoryDescription') }}
             </div>
           </div>
-          <div class="text-sm text-light-2 dark:text-light-2">
-            {{ topologyList.length }} services
+          <div class="self-start rounded-xl bg-white/70 px-4 py-3 text-sm text-light-2 shadow-sm dark:bg-black/10 dark:text-light-2">
+            {{ t('Data.MetricsMachine.Service.ServicesCount', { count: topologyList.length }) }}
           </div>
         </div>
       </div>
 
-      <section class="rounded-2xl border border-light-border bg-light-fill/50 p-5 dark:border-light-border-dark dark:bg-light-fill-dark/50">
+      <section class="rounded-2xl border border-light-border bg-light-fill/50 p-7 dark:border-light-border-dark dark:bg-light-fill-dark/50">
         <div
           v-if="topologyList.length > 0"
-          class="rounded-2xl border border-light-border bg-white/70 p-4 dark:border-light-border-dark dark:bg-black/10"
+          class="rounded-2xl border border-light-border bg-white/70 p-6 dark:border-light-border-dark dark:bg-black/10"
         >
-          <div class="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+          <div class="mb-5 flex min-h-[92px] flex-wrap items-center justify-between gap-4 px-1">
             <div>
-              <div class="text-lg font-semibold">Service Call Graph</div>
-              <div class="text-sm text-light-2 dark:text-light-2">
-                Drag to arrange, scroll to zoom, click a node to inspect metrics.
+              <div class="text-lg font-semibold">{{ t('Data.MetricsMachine.Service.CallGraphTitle') }}</div>
+              <div class="mt-2 text-sm leading-6 text-light-2 dark:text-light-2">
+                {{ t('Data.MetricsMachine.Service.CallGraphDescription') }}
               </div>
             </div>
-            <div class="text-sm text-light-2 dark:text-light-2">
-              {{ graphLinks.length }} calls
+            <div class="rounded-xl bg-light-fill/80 px-4 py-3 text-sm text-light-2 dark:bg-light-fill-dark/80 dark:text-light-2">
+              {{ t('Data.MetricsMachine.Service.CallsCount', { count: graphLinks.length }) }}
             </div>
           </div>
           <div
             ref="graph"
             class="w-full rounded-xl bg-light-fill/60 dark:bg-light-fill-dark/60"
-            style="height: 620px;"
+            style="height: 700px;"
           />
         </div>
 
@@ -331,7 +329,7 @@ onBeforeUnmount(() => {
           v-else
           class="flex min-h-[280px] items-center justify-center text-lg text-light-2 dark:text-light-2"
         >
-          It could be a namespace error or a server error
+          {{ t('Data.MetricsMachine.Common.NamespaceOrServerError') }}
         </div>
       </section>
     </template>

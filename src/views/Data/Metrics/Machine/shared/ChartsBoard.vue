@@ -2,11 +2,13 @@
 import { Madison } from '@/core/madison'
 import chart from '@/views/Data/Metric/Machine/chart.vue'
 import loading from '@/views/Data/Metric/Machine/loading.vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   emptyMessage: string
 }>()
 
+const { t } = useI18n()
 const data = Madison.getInstance().metric.machine.data
 </script>
 
@@ -15,14 +17,14 @@ const data = Madison.getInstance().metric.machine.data
     <div class="mb-4 flex flex-wrap items-end justify-between gap-4">
       <div>
         <div class="text-xs uppercase tracking-[0.24em] text-light-2 dark:text-light-2">
-          Charts
+          {{ t('Data.MetricsMachine.Charts.Label') }}
         </div>
         <div class="text-2xl font-semibold">
-          Metric Trends
+          {{ t('Data.MetricsMachine.Charts.Title') }}
         </div>
       </div>
       <div class="text-sm text-light-2 dark:text-light-2">
-        {{ data.length }} selected
+        {{ t('Data.MetricsMachine.Charts.SelectedCount', { count: data.length }) }}
       </div>
     </div>
 

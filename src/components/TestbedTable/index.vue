@@ -21,6 +21,23 @@ function normalizeLoadParamKey(key: string) {
   return key === 'user' ? 'users' : key
 }
 
+function upsertCreateParam(param: Omit<CreateParamsData, 'k'>) {
+  const normalizedKey = normalizeLoadParamKey(param.key)
+  const existing = createParams.find((item) => item.key === normalizedKey)
+  if (existing) {
+    existing.value = param.value
+    existing.type = param.type
+    existing.component = param.component
+    existing.writeable = param.writeable
+    return
+  }
+  createParams.push({
+    ...param,
+    key: normalizedKey,
+    k: Math.floor(Math.random() * 1000000)
+  })
+}
+
 const { t } = useI18n()
 
 const madison = Madison.getInstance()
@@ -34,7 +51,7 @@ const createParams = reactive<CreateParamsData[]>([])
 const createLoadOptions = computed(() => {
   const options: Record<string, string | number> = {}
   createParams.forEach((param) => {
-    options[normalizeLoadParamKey(param.key)] = param.value
+    options[param.key] = param.value
   })
   return options
 })
@@ -95,16 +112,14 @@ async function loadButtonClick(index: number) {
       return
     }
     createParams.length = 0
-    createParams.push({
-      k: Math.floor(Math.random() * 1000000),
+    upsertCreateParam({
       key: 'namespace',
       value: namespace,
       type: 'string',
       component: 'el-input',
       writeable: false
     })
-    createParams.push({
-      k: Math.floor(Math.random() * 1000000),
+    upsertCreateParam({
       key: 'testbed_id',
       value: testbed.id,
       type: 'string',
@@ -115,9 +130,8 @@ async function loadButtonClick(index: number) {
       const v = params.get(key)
       const t = typeof v
       const c = t === 'string' ? 'el-input' : 'el-input-number'
-      createParams.push({
-        k: Math.floor(Math.random() * 1000000),
-        key: normalizeLoadParamKey(key),
+      upsertCreateParam({
+        key,
         value: v,
         type: t,
         component: c,

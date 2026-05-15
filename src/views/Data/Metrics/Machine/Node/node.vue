@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Topology } from '@/core/madison-addon-metrics/core/machine/node/topology'
 import { Madison } from '@/core/madison'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
   node: {
@@ -8,6 +9,7 @@ const props = defineProps({
     required: true
   }
 })
+const { t } = useI18n()
 const node = props.node
 const namespace = Madison.getInstance().namespace.queryNamespace
 </script>
@@ -31,7 +33,7 @@ const namespace = Madison.getInstance().namespace.queryNamespace
       v-if="node.instances.length === 0"
       class="flex justify-center items-center size-full p-4"
     >
-      <span>No instances</span>
+      <span>{{ t('Data.MetricsMachine.Common.NoPods') }}</span>
     </div>
     <router-link
       :to="{ name: 'metricmachine', query: {

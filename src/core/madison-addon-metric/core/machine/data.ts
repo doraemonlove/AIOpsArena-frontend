@@ -59,6 +59,8 @@ function formatAxisValue(value: number) {
 
 export class MetriMachineDataDetail {
   private readonly __data: MachineMetricRes
+  private readonly __queryStartTimeMs: number
+  private readonly __queryEndTimeMs: number
   private __myChart: echarts.ECharts | null = null
   private __chartElement: HTMLDivElement | null = null
   private __madisonTheme: MadisonTheme
@@ -73,8 +75,17 @@ export class MetriMachineDataDetail {
 
   windowResizeFunc: () => void
 
-  constructor(data: MachineMetricRes, id: string, madisonTheme: MadisonTheme, name: string) {
+  constructor(
+    data: MachineMetricRes,
+    id: string,
+    madisonTheme: MadisonTheme,
+    name: string,
+    queryStartTimeMs: number,
+    queryEndTimeMs: number
+  ) {
     this.__data = data
+    this.__queryStartTimeMs = queryStartTimeMs
+    this.__queryEndTimeMs = queryEndTimeMs
     this.__madisonTheme = madisonTheme
     this.id = id
     this.name = name
@@ -171,6 +182,8 @@ export class MetriMachineDataDetail {
       },
       xAxis: {
         type: 'time',
+        min: this.__queryStartTimeMs,
+        max: this.__queryEndTimeMs,
         boundaryGap: ['0%', '0%'],
         axisLabel: {
           hideOverlap: true

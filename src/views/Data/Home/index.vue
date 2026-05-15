@@ -26,19 +26,19 @@ const cards: {
     needNamespace?: boolean
   }[] = [
     {
-      title: 'Logs',
+      title: 'Data.Sidebar.Logs',
       disc: 'Data.Home.Logs',
       to: 'logs',
       icon: 'Logs'
     },
     {
-      title: 'Metrics',
+      title: 'Data.Sidebar.Metrics',
       disc: 'Data.Home.Metrics',
       to: 'metrics',
       icon: 'Metrics'
     },
     {
-      title: 'Traces',
+      title: 'Data.Sidebar.Traces',
       disc: 'Data.Home.Traces',
       to: 'traces',
       icon: 'Traces'
@@ -122,7 +122,7 @@ const cards: {
       <card
         v-for="c in cards"
         :key="c.to"
-        :title="c.title"
+        :title="t(c.title)"
         :to="c.to"
         :disc="t(c.disc)"
         :icon="c.icon"

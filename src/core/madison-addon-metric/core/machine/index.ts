@@ -31,7 +31,7 @@ export const MACHINE_TIME_RANGE_OPTIONS = [
   { key: '1w', label: '1w', seconds: 7 * 24 * 60 * 60 }
 ] as const
 
-const DEFAULT_MACHINE_TIME_RANGE_KEY = '2h'
+const DEFAULT_MACHINE_TIME_RANGE_KEY = '15m'
 
 function getMachineRangeOption(key: string) {
   return (
@@ -488,7 +488,9 @@ export class Machine extends MadisonAddon {
                   result,
                   key,
                   this.__madison.theme.theme.value,
-                  metricName
+                  metricName,
+                  this.__apiStartTime.value * 1000,
+                  this.__apiEndTime.value * 1000
                 )
                 this.__madison.on('theme-change', detail.themeChange)
                 task.data = detail
