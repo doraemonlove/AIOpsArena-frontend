@@ -30,7 +30,7 @@ export class Testbed extends MadisonAddon {
   private __usedTestbeds = ref(0)
 
   get microservices() {
-    return Array.from(this.__microservices)
+    return this.__microservices.filter((microservice) => microservice.isAvailable)
   }
 
   get testbeds() {
@@ -144,6 +144,8 @@ export class Testbed extends MadisonAddon {
   private async getMicroservices() {
     const res = await getMicroservices()
     const data = res.data
+    this.__microservices = []
+    this.__microservicesMap.clear()
     data.data.forEach((mData) => {
       const m = new Microservice(mData)
       this.__microservices.push(m)

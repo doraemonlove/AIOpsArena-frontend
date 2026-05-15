@@ -2,35 +2,16 @@ export interface MetricNameOptions {
   namespace: string
 }
 
-export interface MetricCategoryMap {
-  [groupName: string]: string[]
-}
+export type MetricType = 'node' | 'pod' | 'service' | 'tidb'
 
 export interface MetricNameRes {
-  machine: {
-    node: MetricCategoryMap
-    pod: MetricCategoryMap
-  }
-  service: {
-    istio: string[]
-  }
-  business: {}
+  node: string[]
+  pod: string[]
+  service: string[]
+  tidb: string[]
 }
 
-export interface MetricNameApiRes {
-  infra_node?: string[]
-  infra_pod?: string[]
-  service_istio?: string[]
-  tidb_core?: string[]
-  machine?: {
-    node: MetricCategoryMap
-    pod: MetricCategoryMap
-  }
-  service?: {
-    istio: string[]
-  }
-  business?: {}
-}
+export type MetricNameApiRes = MetricNameRes
 
 export interface PodListOptions {
   namespace: string
@@ -44,24 +25,37 @@ export interface NodeListOptions {
 
 export type NodeListRes = string[]
 
-export type MetricType = 'pod' | 'node'
-
 export type MachineMetricOptions =
   | {
       namespace: string
-      pod: string
-      metricName: string
-      startTime: number
-      endTime: number
-      metricType: 'pod'
-    }
-  | {
-      namespace: string
-      node: string
       metricName: string
       startTime: number
       endTime: number
       metricType: 'node'
+      node: string
+    }
+  | {
+      namespace: string
+      metricName: string
+      startTime: number
+      endTime: number
+      metricType: 'pod'
+      pod: string
+    }
+  | {
+      namespace: string
+      metricName: string
+      startTime: number
+      endTime: number
+      metricType: 'service'
+      service: string
+    }
+  | {
+      namespace: string
+      metricName: string
+      startTime: number
+      endTime: number
+      metricType: 'tidb'
     }
 
 interface MachineMetricResItemMetric extends Record<string, string> {

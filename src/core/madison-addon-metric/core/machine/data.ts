@@ -1,216 +1,287 @@
 import * as echarts from 'echarts'
 import { markRaw, reactive, type Reactive } from 'vue'
-import type { MachineMetricRes } from '../../types'
 import type { MadisonTheme } from '@/core/madison-addon-theme'
 import type { MadisonAddonDataQueryTask } from '@/core/madison/core/addon-base'
 import { LRUCache } from '@/core/madison/utils'
+import type { MachineMetricRes, MachineMetricResItem } from '../../types'
+
+type MetricPoint = [number, number]
+type LegendItem = { name: string; color: string; selected: boolean }
+type TooltipParam = {
+  seriesName?: string
+  marker?: unknown
+  value?: unknown
+  data?: unknown
+}
+
+const SERIES_COLORS = [
+  '#5470c6',
+  '#91cc75',
+  '#fac858',
+  '#ee6666',
+  '#73c0de',
+  '#3ba272',
+  '#fc8452',
+  '#9a60b4',
+  '#ea7ccc'
+]
+
+function formatMetricName(metric: Record<string, string>, fallbackName: string) {
+  const metricName = metric.__name__ || fallbackName
+  const labels = Object.entries(metric)
+    .filter(([key]) => key !== '__name__')
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}="${value}"`)
+
+  return labels.length > 0 ? `${metricName}{${labels.join(', ')}}` : metricName
+}
+
+function normalizeSeriesData(item: MachineMetricResItem): MetricPoint[] {
+  return item.values.reduce<MetricPoint[]>((result, [timestamp, rawValue]) => {
+    const numericValue = Number(rawValue)
+    if (!Number.isFinite(timestamp) || !Number.isFinite(numericValue)) {
+      return result
+    }
+    result.push([timestamp * 1000, numericValue])
+    return result
+  }, [])
+}
+
+function formatAxisValue(value: number) {
+  const absValue = Math.abs(value)
+  if (absValue >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`
+  if (absValue >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
+  if (absValue >= 1_000) return `${(value / 1_000).toFixed(2)}K`
+  if (absValue >= 1) return `${value.toFixed(2)}`
+  if (absValue === 0) return '0'
+  return value.toPrecision(3)
+}
 
 export class MetriMachineDataDetail {
-  private __data: MachineMetricRes
-  readonly id: string
+  private readonly __data: MachineMetricRes
   private __myChart: echarts.ECharts | null = null
   private __chartElement: HTMLDivElement | null = null
   private __madisonTheme: MadisonTheme
-  private __selectSeries: string = ''
+  private readonly __defaultZoomWindow = { start: 0, end: 100 }
+  private __lastPointerY = 0
+
+  readonly id: string
   readonly name: string
-  readonly themeChange = this.__themeChange.bind(this)
   readonly empty: boolean
+  readonly legendItems: LegendItem[]
+  readonly themeChange = this.__themeChange.bind(this)
 
-  windowResizeFunc: any
+  windowResizeFunc: () => void
 
-  constructor(
-    data: MachineMetricRes,
-    id: string,
-    madisonTheme: MadisonTheme,
-    name: string
-  ) {
+  constructor(data: MachineMetricRes, id: string, madisonTheme: MadisonTheme, name: string) {
     this.__data = data
-    this.empty = data.length === 0
-    this.id = id
     this.__madisonTheme = madisonTheme
+    this.id = id
     this.name = name
-
+    this.empty = data.length === 0 || data.every((item) => normalizeSeriesData(item).length === 0)
+    this.legendItems = data
+      .map((item, index) => ({
+        name: formatMetricName(item.metric, this.name),
+        color: SERIES_COLORS[index % SERIES_COLORS.length],
+        selected: true
+      }))
+      .filter((item, index) => normalizeSeriesData(data[index]).length > 0)
     this.windowResizeFunc = this.resizeChart.bind(this)
   }
 
   private __themeChange(theme: MadisonTheme) {
     this.__madisonTheme = theme
-    if (this.__myChart) {
-      this.__myChart.dispose()
-      this.__myChart = null
+    if (this.__chartElement) {
+      this.render(this.__chartElement)
     }
-    if (this.__chartElement) this.renderChart(this.__chartElement)
   }
 
-  /**
-   * 渲染图表
-   * @param chartElement
-   * @returns
-   */
   render(chartElement: HTMLDivElement): boolean {
     this.distory()
     this.__chartElement = chartElement
-    const res = this.renderChart(chartElement)
-    return res
-  }
+    if (this.empty) return false
 
-  private renderChart(element: HTMLDivElement): boolean {
-    const theme = this.__madisonTheme
+    const series = this.__data.reduce<echarts.LineSeriesOption[]>((result, item, index) => {
+        const points = normalizeSeriesData(item)
+        if (points.length === 0) return result
+        result.push({
+          name: formatMetricName(item.metric, this.name),
+          type: 'line',
+          showSymbol: false,
+          symbolSize: 8,
+          smooth: false,
+          connectNulls: false,
+          sampling: 'lttb',
+          triggerLineEvent: true,
+          lineStyle: {
+            width: 2,
+            color: SERIES_COLORS[index % SERIES_COLORS.length]
+          },
+          itemStyle: {
+            color: SERIES_COLORS[index % SERIES_COLORS.length]
+          },
+          emphasis: {
+            focus: 'series'
+          },
+          data: points
+        })
+        return result
+      }, [])
 
-    const data: echarts.SeriesOption[] = this.__data.map((item) => {
-      return {
-        name: item.metric.__name__ + JSON.stringify(item.metric),
-        type: 'line',
-        smooth: true,
-        symbol: 'none',
-        triggerLineEvent: true,
-        data: item.values.map((d) => [new Date(d[0] * 1000), parseInt(d[1])]) as [Date, number][],
-        lineStyle: {
-          width: 3
-        }
-      }
-    })
+    if (series.length === 0) return false
+
+    this.__myChart = markRaw(
+      echarts.init(chartElement, this.__madisonTheme === 'light' ? undefined : 'dark')
+    )
+
     const option: echarts.EChartsOption = {
-      tooltip: {
-        trigger: 'axis',
-        appendTo: document.body,
-        formatter: (params: any) => {
-          let res = ''
-          for (let i = 0; i < params.length; i++) {
-            const series = params[i]
-            if (series.seriesName === this.__selectSeries) {
-              res = `<div style="margin: 0px 0 0;line-height:1;"><div style="margin: 0px 0 0;line-height:1;"><div style="font-size:14px;color:#666;font-weight:400;line-height:1;">${series.axisValueLabel}</div><div style="margin: 10px 0 0;line-height:1;"><div style="margin: 0px 0 0;line-height:1;"><div style="margin: 0px 0 0;line-height:1;"><span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${series.color};"></span><span style="font-size:14px;color:#666;font-weight:400;margin-left:2px">${echarts.format.truncateText(series.seriesName, 400, '14px Microsoft Yahei', '…')}</span><span style="float:right;margin-left:20px;font-size:14px;color:#666;font-weight:900">${series.value[1]}</span><div style="clear:both"></div></div><div style="clear:both"></div></div><div style="clear:both"></div></div><div style="clear:both"></div></div><div style="clear:both"></div></div>`
-              break
-            }
-          }
-          return res
-        }
-        // confine: true
-      },
-      animationDuration: 1500,
-      animationEasingUpdate: 'quinticInOut',
-      backgroundColor: 'rgba(0, 0, 0, 0)',
+      animationDuration: 300,
+      animationDurationUpdate: 300,
+      backgroundColor: 'transparent',
       title: {
-        left: 'center',
-        text: this.name
+        show: false
       },
       grid: {
-        left: 80,
-        right: 80,
-        bottom: 120
+        top: 24,
+        left: 72,
+        right: 48,
+        bottom: 56
+      },
+      tooltip: {
+        trigger: 'axis',
+        triggerOn: 'mousemove|click',
+        appendTo: document.body,
+        confine: true,
+        formatter: (params) => {
+          const nearestParam = this.getNearestTooltipParam(
+            Array.isArray(params) ? params : [params]
+          )
+          if (!nearestParam) return ''
+          return this.formatTooltip(nearestParam)
+        },
+        axisPointer: {
+          type: 'cross',
+          snap: false
+        }
+      },
+      legend: {
+        show: false,
+        data: this.legendItems.map((item) => item.name),
+        selected: Object.fromEntries(this.legendItems.map((item) => [item.name, item.selected]))
       },
       xAxis: {
-        type: 'time'
+        type: 'time',
+        boundaryGap: ['0%', '0%'],
+        axisLabel: {
+          hideOverlap: true
+        }
       },
       yAxis: {
         type: 'value',
+        scale: true,
         axisLabel: {
-          formatter: function (value) {
-            if (value >= 1000000000) {
-              return (value / 1000000000).toFixed(3) + 'B' // 十亿
-            } else if (value >= 1000000) {
-              return (value / 1000000).toFixed(3) + 'M' // 百万
-            } else if (value >= 1000) {
-              return (value / 1000).toFixed(3) + 'k' // 千
-            } else {
-              return value.toString() // 小于1000，直接显示
-            }
-          }
-        },
-        boundaryGap: [0, '10%']
+          formatter: (value: number) => formatAxisValue(value)
+        }
       },
       dataZoom: [
         {
           type: 'slider',
-          show: true,
-          xAxisIndex: [0],
-          bottom: 60,
-          start: 0,
-          end: 100
-        },
-        {
-          type: 'slider',
-          show: true,
-          yAxisIndex: [0],
-          right: 40,
-          start: 0,
-          end: 100
-        },
-        {
-          type: 'inside',
-          xAxisIndex: [0],
-          start: 0,
-          end: 100,
-          preventDefaultMouseMove: false
-        },
-        {
-          type: 'inside',
-          yAxisIndex: [0],
-          start: 0,
-          end: 100,
-          preventDefaultMouseMove: false
+          xAxisIndex: 0,
+          filterMode: 'none',
+          bottom: 20,
+          height: 24,
+          start: this.__defaultZoomWindow.start,
+          end: this.__defaultZoomWindow.end
         }
       ],
-      series: data,
-      emphasis: {
-        focus: 'series'
-      },
-      legend: {
-        formatter: (name) => {
-          // return echarts.format.truncateText(name, 50, '14px Microsoft Yahei', '…')
-          return name
-        },
-        tooltip: {
-          show: true,
-          position: (pos, params, dom, rect, size) => {
-            return {
-              left: size.viewSize[0] / 2 - size.contentSize[0] / 2,
-              bottom: 50
-            }
-          },
-          formatter: '<span style="font-size: 13px">{a}</span>'
-        },
-        type: 'scroll',
-        orient: 'vertical',
-        height: 40,
-        // right: 10,
-        // top: 60,
-        bottom: 0
-      }
+      series
     }
-    this.__myChart = markRaw(echarts.init(element, theme === 'light' ? undefined : 'dark'))
+
     this.__myChart.setOption(option)
-
-    this.__myChart.on('mousemove', (params) => {
-      this.__selectSeries = params.seriesName || ''
-      // console.log('mousemove')
+    this.__myChart.getZr().on('mousemove', (event) => {
+      this.__lastPointerY = event.offsetY
     })
-
-    this.__myChart.on('mouseout', (params) => {
-      this.__selectSeries = ''
-      // console.log('mouseout')
-    })
+    this.__myChart.resize()
     window.addEventListener('resize', this.windowResizeFunc)
     return true
   }
 
-  /**
-   * 图表销毁
-   */
   distory() {
     window.removeEventListener('resize', this.windowResizeFunc)
     if (this.__myChart) {
       this.__myChart.dispose()
       this.__myChart = null
-      this.__chartElement = null
     }
+    this.__chartElement = null
   }
 
   resizeChart() {
-    if (this.__myChart) {
-      this.__myChart.resize()
-    }
+    this.__myChart?.resize()
   }
+
+  private getNearestTooltipParam(params: TooltipParam[]) {
+    const candidates = params.filter((param) => {
+      const legend = this.legendItems.find((legendItem) => legendItem.name === param.seriesName)
+      return legend?.selected !== false && this.getTooltipPoint(param) !== null
+    })
+    if (!this.__myChart || candidates.length === 0) return null
+
+    return candidates.reduce<TooltipParam | null>((nearest, current) => {
+      if (!nearest) return current
+      return this.getDistanceToPointer(current) < this.getDistanceToPointer(nearest)
+        ? current
+        : nearest
+    }, null)
+  }
+
+  private getTooltipPoint(param: TooltipParam): MetricPoint | null {
+    const source = Array.isArray(param.value) ? param.value : param.data
+    if (!Array.isArray(source)) return null
+    const timestamp = source[0]
+    const value = source[1]
+    return typeof timestamp === 'number' && typeof value === 'number'
+      ? [timestamp, value]
+      : null
+  }
+
+  private getDistanceToPointer(param: TooltipParam) {
+    const point = this.getTooltipPoint(param)
+    if (!point || !this.__myChart) return Number.POSITIVE_INFINITY
+    const pixel = this.__myChart.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, point)
+    const pixelY = Array.isArray(pixel) ? pixel[1] : Number.POSITIVE_INFINITY
+    return Math.abs(pixelY - this.__lastPointerY)
+  }
+
+  private formatTooltip(param: TooltipParam) {
+    const point = this.getTooltipPoint(param)
+    if (!point) return ''
+    const [timestamp, value] = point
+    const timeLabel = echarts.time.format(timestamp, '{yyyy}-{MM}-{dd} {HH}:{mm}:{ss}', false)
+
+    return [
+      timeLabel,
+      `${typeof param.marker === 'string' ? param.marker : ''}${param.seriesName || this.name}`,
+      `value: ${formatAxisValue(value)}`
+    ].join('<br/>')
+  }
+
+  toggleSeries(seriesName: string) {
+    const item = this.legendItems.find((legendItem) => legendItem.name === seriesName)
+    if (!item) return
+    item.selected = !item.selected
+    this.__myChart?.setOption({
+      legend: {
+        selected: {
+          [seriesName]: item.selected
+        }
+      }
+    })
+    this.__myChart?.dispatchAction({
+      type: item.selected ? 'legendSelect' : 'legendUnSelect',
+      name: seriesName
+    })
+  }
+
 }
 
 export class MetricMachineDatabase {
@@ -235,7 +306,6 @@ export class MetricMachineDatabase {
 
   private deleteCallback(key: string, value: MadisonAddonDataQueryTask<MetriMachineDataDetail>) {
     this.__deleteCallback(key, value)
-    // value.data?.distory()
   }
 
   has(key: string): boolean {
@@ -252,6 +322,6 @@ export class MetricMachineDatabase {
 
   clear() {
     const keys = Array.from(this.__data.keys())
-    keys.forEach(key => this.__data.delete(key))
+    keys.forEach((key) => this.__data.delete(key))
   }
 }

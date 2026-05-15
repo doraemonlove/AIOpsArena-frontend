@@ -14,22 +14,15 @@ const type = machine.type
 const selectedMetricName = machine.selectedMetricName
 const nodeOrPodList = machine.nodeOrPodList
 
-const metricNameMachine = computed(() => {
+const metricNameDetail = computed(() => {
   const ins = madison.metric.getMetricName(namespace.value)
-  if (ins) return ins.machine
-  return null
-})
-
-const metricName = computed(() => {
-  if (metricNameMachine.value) {
-    return metricNameMachine.value[type.value]
-  }
+  if (ins) return ins.getByType(type.value as 'node' | 'pod')
   return null
 })
 
 const metricNameData = computed(() => {
-  if (metricName.value) {
-    return metricName.value.data
+  if (metricNameDetail.value) {
+    return metricNameDetail.value.data
   }
   return []
 })

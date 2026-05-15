@@ -98,9 +98,19 @@ const router = createRouter({
                   component: () => import('../views/Data/Metrics/Machine/Node/index.vue')
                 },
                 {
+                  path: 'service',
+                  name: 'metricsmachineservice',
+                  component: () => import('../views/Data/Metrics/Machine/Service/index.vue')
+                },
+                {
                   path: 'pod',
                   name: 'metricsmachinepod',
                   component: () => import('../views/Data/Metrics/Machine/Pod/index.vue')
+                },
+                {
+                  path: 'tidb',
+                  name: 'metricsmachinetidb',
+                  component: () => import('../views/Data/Metrics/Machine/Tidb/index.vue')
                 }
               ]
             }

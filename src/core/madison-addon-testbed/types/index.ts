@@ -8,7 +8,8 @@ export interface MicroserviceItem {
   frontend: string,
   init_command: null,
   loadgenerator: string,
-  allow_replica: boolean
+  allow_replica: boolean,
+  is_available: boolean
 }
 
 export type MicroservicesRes = MicroserviceItem[]

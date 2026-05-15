@@ -23,10 +23,11 @@ export function getTestbedQuota() {
   })
 }
 
-export function getMicroservices() {
+export function getMicroservices(isAvailable?: boolean) {
   return service<MicroservicesRes>({
     url: '/testbed/microservices',
-    method: 'get'
+    method: 'get',
+    params: isAvailable === undefined ? undefined : { is_available: isAvailable }
   })
 }
 

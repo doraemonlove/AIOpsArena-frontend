@@ -20,6 +20,13 @@ export class Pod extends MadisonAddon {
 
   windowResizeFunc: any
 
+  get topology(): ComputedRef<Topology[]> {
+    return computed(() => {
+      const namespace = this.__madison.namespace.queryNamespace.value
+      return this.__topologyMap.get(namespace) || []
+    })
+  }
+
   get selectedService(): ComputedRef<Topology> | ComputedRef<undefined> {
     return computed(() => {
       if (this.__selectedService.value === '') return undefined
@@ -63,7 +70,7 @@ export class Pod extends MadisonAddon {
     to: RouteLocationNormalized,
     from: RouteLocationNormalized
   ): Promise<RouteLocationRaw | void> {
-    const can = await this.defNoNSCheck(to, from, 'metricsmachinepod')
+    const can = await this.defNoNSCheck(to, from, (to) => to.name === 'metricsmachinepod' || to.name === 'metricsmachineservice')
     if (!can) return
 
     await this.__madison.login.waitingForLogin

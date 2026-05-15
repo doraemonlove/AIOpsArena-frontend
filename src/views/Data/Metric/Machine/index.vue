@@ -23,9 +23,13 @@ const data = machine.data
         >
           <chart
             v-if="d.data !== null"
+            class="block h-full w-full"
             :data="d.data"
           />
-          <loading v-else />
+          <loading
+            v-else
+            class="block h-full w-full"
+          />
         </div>
         <div
           v-if="data.length === 0"

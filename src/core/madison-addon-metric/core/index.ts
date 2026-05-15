@@ -41,7 +41,7 @@ export class Metric extends MadisonAddon {
     const can = await this.defNoNSCheck(
       to,
       from,
-      (to) => this.includes(to, 'metric')
+      (to) => this.includes(to, 'metric') || this.includes(to, 'metrics')
     )
     if (!can) return
     const namespace = (to.query.namespace as string) || ''

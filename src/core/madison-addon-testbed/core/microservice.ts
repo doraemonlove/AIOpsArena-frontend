@@ -8,6 +8,7 @@ export class Microservice {
   readonly frontend: string
   readonly loadGenerator: string
   readonly allowReplica: boolean
+  readonly isAvailable: boolean
 
   private __servicesMap: Map<string, Service> = new Map()
 
@@ -22,6 +23,7 @@ export class Microservice {
     this.frontend = data.frontend
     this.loadGenerator = data.loadgenerator
     this.allowReplica = data.allow_replica
+    this.isAvailable = data.is_available
 
     this.init(data)
   }

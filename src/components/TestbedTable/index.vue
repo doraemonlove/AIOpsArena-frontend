@@ -17,6 +17,10 @@ type CreateParamsData = {
   writeable: boolean
 }
 
+function normalizeLoadParamKey(key: string) {
+  return key === 'user' ? 'users' : key
+}
+
 const { t } = useI18n()
 
 const madison = Madison.getInstance()
@@ -30,7 +34,7 @@ const createParams = reactive<CreateParamsData[]>([])
 const createLoadOptions = computed(() => {
   const options: Record<string, string | number> = {}
   createParams.forEach((param) => {
-    options[param.key] = param.value
+    options[normalizeLoadParamKey(param.key)] = param.value
   })
   return options
 })
@@ -113,7 +117,7 @@ async function loadButtonClick(index: number) {
       const c = t === 'string' ? 'el-input' : 'el-input-number'
       createParams.push({
         k: Math.floor(Math.random() * 1000000),
-        key: key,
+        key: normalizeLoadParamKey(key),
         value: v,
         type: t,
         component: c,

@@ -45,13 +45,14 @@ export function getMachinemetric(options: MachineMetricOptions) {
       end_time: options.endTime,
       metric_type: options.metricType,
       pod: options.metricType === 'pod' ? options.pod : undefined,
-      node: options.metricType === 'node' ? options.node : undefined
+      node: options.metricType === 'node' ? options.node : undefined,
+      service: options.metricType === 'service' ? options.service : undefined
     }
   })
 }
 
 export function getMachinemetricData(params: { taskId: string }) {
-  return service<{ status: string; result: MachineMetricRes }>({
+  return service<{ status: string; result: MachineMetricRes | null }>({
     url: '/monitor/taskresult',
     method: 'get',
     params: {
