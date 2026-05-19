@@ -43,7 +43,8 @@ export default {
     Duration: '持续时间',
     Cancel: '取消',
     Warning: '警告',
-    DeletePrompt: '你确定要<span class="text-red-500">删除</span>故障',
+    DeletePromptPrefix: '你确定要',
+    DeletePromptSuffix: '故障',
     Q: '吗？',
     Ongoing: '请勿删除正在执行的故障'
   },

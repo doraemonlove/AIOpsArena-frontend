@@ -93,8 +93,13 @@ export interface LoongCalendarOptions {
    * 日历各种尺寸配置
    */
   grid?: LoongCalendarGridOptions
+  scheduleDisplay?: {
+    layoutMode?: 'precise' | 'block'
+    snapMinutes?: number
+    minDurationMinutes?: number
+    durationStepMinutes?: number
+  }
   themes?: Record<string, LoongCalendarThemeOptions>
   mode?: 'default' | 'week' | 'date'
   categories?: string[]
 }
-

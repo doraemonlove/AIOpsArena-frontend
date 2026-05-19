@@ -180,8 +180,8 @@ export class ScheduleRenderer extends RendererBase {
     const l = schedules.length
     for (let i = 0; i < l; i++) {
       const schedule = schedules[i]
-      const stp = schedule.startTimestamp
-      const etp = schedule.endTimestamp
+      const stp = schedule.layoutStartTimestamp
+      const etp = schedule.layoutEndTimestamp
       if (etp < stratTimestamp) continue
       if (stp > endTimestamp) continue
       const timeYOffset = (stp - dateBeginTimestamp) / dayMS * fullHeight + yOffset
@@ -201,10 +201,11 @@ export class ScheduleRenderer extends RendererBase {
     width: number,
     height: number
   ) {
-    const color = schedule.schedule.color
-    ctx.fillStyle = this.__options.dark ? this.darkenColor(color) + '40' : this.lightenColor(color)
-    this.drawCapsuleRect(ctx, x + 0.5, y + 0.5, width - 1, height - 1)
-    ctx.fillStyle = color
+    const visual = this.getScheduleVisual(schedule)
+    this.drawCardShadow(ctx, x, y, width, height, this.hexToRgba(visual.shadowColor, 0.16))
+    ctx.fillStyle = this.hexToRgba(visual.backgroundColor, 0.68)
+    this.drawCapsuleRect(ctx, x + 0.5, y + 0.5, width - 1, height - 1, 10)
+    ctx.fillStyle = this.hexToRgba(visual.borderColor, 0.92)
     this.drawCapsuleRect(ctx, x + 0.5, y + 0.5, 4, height - 1, 2)
     this.renderText(ctx, schedule, x, y, width, height)
   }
@@ -230,10 +231,12 @@ export class ScheduleRenderer extends RendererBase {
     width: number,
     height: number
   ) {
-    const color = schedule.schedule.color
-    ctx.fillStyle = this.__options.dark ? color + 'A0' : color
-    this.drawCapsuleOuterShadow(ctx, x + 0.5, y + 0.5, width - 1, height - 1, 4, color + '50')
-    ctx.fillStyle = this.__options.color
+    const visual = this.getScheduleVisual(schedule)
+    this.drawCardShadow(ctx, x, y, width, height, this.hexToRgba(visual.shadowColor, 0.24), 18)
+    ctx.fillStyle = this.hexToRgba(visual.backgroundColor, 0.9)
+    this.drawCapsuleRect(ctx, x + 0.5, y + 0.5, width - 1, height - 1, 10)
+    ctx.fillStyle = this.hexToRgba(visual.borderColor, 1)
+    this.drawCapsuleRect(ctx, x + 0.5, y + 0.5, 4, height - 1, 2)
     this.renderText(ctx, schedule, x, y, width, height)
   }
 
@@ -247,24 +250,103 @@ export class ScheduleRenderer extends RendererBase {
   ) {
     ctx.save()
     const title = schedule.schedule.title
-    const content = schedule.schedule.content
     const startTime = schedule.schedule.scheduleBaseData.startTime
     const endTime = schedule.schedule.scheduleBaseData.endTime
-    const startTimeStr = startTime instanceof Date ? startTime.toLocaleString() : `${startTime[0].toString().padStart(2, '0')}:${startTime[1].toString().padStart(2, '0')}:${startTime[2].toString().padStart(2, '0')}`
-    const endTimeStr = endTime instanceof Date ? endTime.toLocaleString() : `${endTime[0].toString().padStart(2, '0')}:${endTime[1].toString().padStart(2, '0')}:${endTime[2].toString().padStart(2, '0')}`
+    const visual = this.getScheduleVisual(schedule)
+    const startTimeStr = startTime instanceof Date ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : `${startTime[0].toString().padStart(2, '0')}:${startTime[1].toString().padStart(2, '0')}`
+    const endTimeStr = endTime instanceof Date ? endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : `${endTime[0].toString().padStart(2, '0')}:${endTime[1].toString().padStart(2, '0')}`
+    const timeRangeText = `${startTimeStr}-${endTimeStr}`
     ctx.beginPath()
     ctx.rect(x + 5, y + 1, width - 8, height - 2) // 裁剪区域
     ctx.clip()
-    // 渲染文字
+    const compact = height < 56 || width < 120
+    const medium = height < 96
+    ctx.fillStyle = visual.titleColor
     ctx.font = `${this.__options.titleFontSize}px ${this.__options.titleFontFamily}`
     ctx.fillText(title, x + 10, y + this.__options.titleFontSize + 3)
-    ctx.font = `${this.__options.contentFontSize}px ${this.__options.contentFontFamily}`
-    ctx.fillText(content, x + 10, y + this.__options.titleFontSize + this.__options.contentFontSize + 3 * 2)
     ctx.font = `${this.__options.timeFontSize}px ${this.__options.timeFontFamily}`
-    const minH = this.__options.titleFontSize + this.__options.contentFontSize
-    ctx.fillText('Start: ' + startTimeStr, x + 10, y + minH + this.__options.timeFontSize + 3 * 4)
-    ctx.fillText('End: ' + endTimeStr, x + 10, y + minH + this.__options.timeFontSize * 2 + 3 * 5)
+    if (!compact) {
+      ctx.fillStyle = visual.timeColor
+      const timeY = medium
+        ? y + this.__options.titleFontSize + this.__options.timeFontSize + 8
+        : y + this.__options.titleFontSize + this.__options.timeFontSize + 12
+      ctx.fillText(timeRangeText, x + 10, timeY)
+    }
     ctx.restore()
+  }
+
+  private getScheduleVisual(schedule: ScheduleRenderData) {
+    const key = schedule.schedule.title.toLowerCase()
+    if (key.includes('network') || key.includes('http') || key.includes('latency')) {
+      return {
+        backgroundColor: '#d9ecff',
+        borderColor: '#1d8fff',
+        shadowColor: '#7db7f6',
+        titleColor: '#0670d8',
+        timeColor: '#5d7f9b'
+      }
+    }
+    if (key.includes('io') || key.includes('disk')) {
+      return {
+        backgroundColor: '#ffe7df',
+        borderColor: '#ff8a65',
+        shadowColor: '#f8b19b',
+        titleColor: '#ef6c44',
+        timeColor: '#9f7b70'
+      }
+    }
+    if (key.includes('stress') || key.includes('cpu') || key.includes('memory') || key.includes('jvm')) {
+      return {
+        backgroundColor: '#ece7ff',
+        borderColor: '#7a64ef',
+        shadowColor: '#b9adff',
+        titleColor: '#6a56db',
+        timeColor: '#7e78a8'
+      }
+    }
+    if (key.includes('dns') || key.includes('pod') || key.includes('kill')) {
+      return {
+        backgroundColor: '#e3f7ef',
+        borderColor: '#4bc68e',
+        shadowColor: '#9ddfbe',
+        titleColor: '#2ba971',
+        timeColor: '#709788'
+      }
+    }
+    return {
+      backgroundColor: '#e2efff',
+      borderColor: '#4f9dff',
+      shadowColor: '#9fc9ff',
+      titleColor: '#1d73d8',
+      timeColor: '#6684a2'
+    }
+  }
+
+  private drawCardShadow(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    shadowColor: string,
+    blur: number = 14
+  ) {
+    ctx.save()
+    ctx.shadowColor = shadowColor
+    ctx.shadowBlur = blur
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 6
+    ctx.fillStyle = 'rgba(255,255,255,0.01)'
+    this.drawCapsuleRect(ctx, x + 1, y + 1, width - 2, height - 2, 10)
+    ctx.restore()
+  }
+
+  private hexToRgba(hexColor: string, alpha: number) {
+    const normalized = hexColor.replace('#', '')
+    const r = parseInt(normalized.slice(0, 2), 16)
+    const g = parseInt(normalized.slice(2, 4), 16)
+    const b = parseInt(normalized.slice(4, 6), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
   }
 
   private lightenColor(hexColor: string): string {

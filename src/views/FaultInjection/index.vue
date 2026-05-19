@@ -18,10 +18,14 @@ const calendar = useCalendar(CalendarFaultsManager.CAL_KEY, {
     cellMinWidth: 180,
     dateHeight: 64,
     cells: [
-      { range: '2h', displayHeight: 84, maxHeight: 0 },
-      { range: '1h', displayHeight: 72, maxHeight: 0 },
-      { range: '30m', displayHeight: 64, maxHeight: 92 }
+      { range: '1h', displayHeight: 88, maxHeight: 88 }
     ]
+  },
+  scheduleDisplay: {
+    layoutMode: 'block',
+    snapMinutes: 60,
+    minDurationMinutes: 20,
+    durationStepMinutes: 20
   },
   themes: {
     light: {
@@ -127,6 +131,8 @@ const weekLabel = computed(() => {
   return `${startYear}.${startMonth}.${startDate} - ${endYear}.${endMonth}.${endDate}`
 })
 
+let hasPositionedCalendarToNow = false
+
 watch(
   faultCategories,
   (categories) => {
@@ -143,6 +149,15 @@ watch(
 function clickFault(event: MouseEvent, fault: ScheduleRenderData) {
   displayFault.value = fault
   drawerVisible.value = true
+}
+
+function closeFaultDetail() {
+  drawerVisible.value = false
+  faultManager.calendarFaultsManager.hideCard()
+}
+
+function handleDrawerClosed() {
+  displayFault.value = null
 }
 
 function selectFault(category: string, fault: string) {
@@ -204,6 +219,23 @@ function getFaultCardMeta(name: string, category: string) {
   }
 }
 
+function getCategoryButtonClass(category: string, isActive: boolean) {
+  const normalized = category.toLowerCase()
+  if (normalized === 'service') {
+    return isActive
+      ? 'fault-category-button fault-category-button--active fault-category-button--service'
+      : 'fault-category-button fault-category-button--inactive fault-category-button--service-soft'
+  }
+  if (normalized === 'pod') {
+    return isActive
+      ? 'fault-category-button fault-category-button--active fault-category-button--pod'
+      : 'fault-category-button fault-category-button--inactive fault-category-button--pod-soft'
+  }
+  return isActive
+    ? 'fault-category-button fault-category-button--active'
+    : 'fault-category-button fault-category-button--inactive'
+}
+
 function getFaultIcon(name: string, category: string) {
   const key = name.toLowerCase()
   if (key.includes('cpu')) return 'Histogram'
@@ -238,15 +270,46 @@ function jumpToCurrentWeek() {
   calendar.manager.renderWeek.value = toWeekStart(new Date())
 }
 
+function positionCalendarToNow(force = false) {
+  if (hasPositionedCalendarToNow && !force) return
+  const renderer = calendar.renderer
+  const viewHeight = renderer.canvasHeight - renderer.dayRenderer.height - renderer.scrollbarRenderer.size
+  if (viewHeight <= 0) return
+
+  const secondsSinceMidnight =
+    new Date().getHours() * 3600 +
+    new Date().getMinutes() * 60 +
+    new Date().getSeconds()
+
+  const calendarHeight =
+    renderer.gridLineRenderer.linesAmount[0] *
+    renderer.gridLineRenderer.minHeight *
+    renderer.yScale
+
+  const targetYOffset = Math.round(viewHeight * 0.42 - (secondsSinceMidnight / 86400) * calendarHeight)
+  renderer.updateOffset(0, targetYOffset, false, true)
+  hasPositionedCalendarToNow = true
+}
+
+function handleCanvasOnline() {
+  requestAnimationFrame(() => {
+    positionCalendarToNow()
+  })
+}
+
 calendar.on('schedule-mouse-click', clickFault)
+calendar.on('canvas-online', handleCanvasOnline)
 
 onMounted(() => {
   calendar.manager.type.value = 'week'
   calendar.manager.renderWeek.value = toWeekStart(calendar.manager.renderWeek.value || new Date())
+  handleCanvasOnline()
 })
 
 onBeforeUnmount(() => {
   calendar.off('schedule-mouse-click', clickFault)
+  calendar.off('canvas-online', handleCanvasOnline)
+  hasPositionedCalendarToNow = false
 })
 </script>
 
@@ -300,10 +363,7 @@ onBeforeUnmount(() => {
                   <button
                     v-for="category in faultCategories"
                     :key="category.value"
-                    class="rounded-full border px-4 py-2 text-sm font-medium capitalize transition-all"
-                    :class="category.value === activeFaultCategory
-                      ? 'border-blue-200 bg-blue-50 text-blue-600 shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-800'"
+                    :class="getCategoryButtonClass(category.value, category.value === activeFaultCategory)"
                     @click="activeFaultCategory = category.value"
                   >
                     {{ category.label }}
@@ -426,11 +486,13 @@ onBeforeUnmount(() => {
           :title="t('FaultInjection.DetailDialog.FaultDetail')"
           direction="rtl"
           :size="500"
+          @closed="handleDrawerClosed"
         >
           <faultDetail
-            :key="displayFault === null ? 'unknown' : displayFault.id"
-            :fault="(displayFault as ScheduleRenderData)"
-            @close="drawerVisible = false; displayFault = null"
+            v-if="displayFault"
+            :key="displayFault.id"
+            :fault="displayFault"
+            @close="closeFaultDetail"
           />
         </el-drawer>
       </div>
@@ -489,6 +551,84 @@ onBeforeUnmount(() => {
 
 .fault-icon-card:hover {
   box-shadow: 0 18px 36px rgba(148, 163, 184, 0.16);
+}
+
+.fault-category-button {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  padding: 0.6rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.fault-category-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.fault-category-button:hover {
+  transform: translateY(-1px);
+}
+
+.fault-category-button--active {
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+}
+
+.fault-category-button--inactive {
+  border-style: dashed;
+  background: #fff;
+  color: #64748b;
+  opacity: 0.78;
+}
+
+.fault-category-button--inactive::after {
+  opacity: 1;
+}
+
+.fault-category-button--inactive:hover {
+  opacity: 1;
+}
+
+.fault-category-button--service {
+  border-color: rgba(16, 185, 129, 0.28);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(236, 253, 245, 0.95));
+  color: #047857;
+}
+
+.fault-category-button--service-soft {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, rgba(240, 253, 250, 0.98), rgba(236, 253, 245, 0.92));
+  color: #047857;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.08);
+}
+
+.fault-category-button--service-soft::after {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(255, 255, 255, 0));
+}
+
+.fault-category-button--pod {
+  border-color: rgba(59, 130, 246, 0.28);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(239, 246, 255, 0.96));
+  color: #1d4ed8;
+}
+
+.fault-category-button--pod-soft {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(219, 234, 254, 0.92));
+  color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.08);
+}
+
+.fault-category-button--pod-soft::after {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(255, 255, 255, 0));
 }
 
 @media (max-width: 1500px) {

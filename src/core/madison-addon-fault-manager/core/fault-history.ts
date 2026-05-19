@@ -360,6 +360,17 @@ export class CalendarFaultsManager extends MadisonAddon {
     return computed(() => this.__scheduleRenderData)
   }
 
+  hideCard() {
+    this.__cardVisible.value = false
+    this.__schedule = null
+    this.__scheduleRenderData.id = undefined
+    this.__scheduleRenderData.category = undefined
+    this.__scheduleRenderData.content = undefined
+    this.__scheduleRenderData.title = undefined
+    this.__scheduleRenderData.startTime = undefined
+    this.__scheduleRenderData.endTime = undefined
+  }
+
   constructor(madiosn: Madison, faultManager: FaultManager) {
     super(madiosn)
     this.faultManager = faultManager
@@ -396,8 +407,7 @@ export class CalendarFaultsManager extends MadisonAddon {
   }
 
   private renderDataOut(schedule: ScheduleRenderData) {
-    this.__cardVisible.value = false
-    this.__schedule = null
+    this.hideCard()
   }
 
   private renderMouseMove(event: MouseEvent, schedule: ScheduleRenderData) {

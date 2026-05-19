@@ -2,13 +2,13 @@
 import { ScheduleRenderData } from '@/components/LoongCalendar'
 import { useMadison } from '@/core/madison'
 import { message } from '@/utils/utils'
-import { computed, ref } from 'vue'
+import { computed, ref, type PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { JsonViewer } from 'vue3-json-viewer'
 
 const props = defineProps({
   fault: {
-    type: ScheduleRenderData,
+    type: Object as PropType<Record<string, any>>,
     required: true
   }
 })
@@ -35,6 +35,7 @@ async function handleDelete() {
   }
   const res = await faultManager.deleteFault(faultD.id)
   if (res) {
+    faultManager.calendarFaultsManager.hideCard()
     dialogVisible.value = false
     emits('close')
   }
@@ -80,11 +81,15 @@ async function handleDelete() {
       :title="t('FaultInjection.DetailDialog.Warning')"
       width="600"
     >
-
-      <span
-        class="text-lg"
-        v-html="t('FaultInjection.DetailDialog.DeletePrompt') + ' ' + faultD.name + ' ' + t('FaultInjection.DetailDialog.Q')"
-      />
+      <span class="text-lg">
+        {{ t('FaultInjection.DetailDialog.DeletePromptPrefix') }}
+        <span class="text-red-500 font-semibold">
+          {{ t('FaultInjection.DetailDialog.Delete') }}
+        </span>
+        {{ t('FaultInjection.DetailDialog.DeletePromptSuffix') }}
+        {{ faultD.name }}
+        {{ t('FaultInjection.DetailDialog.Q') }}
+      </span>
       <template #footer>
         <div class="flex gap-4 justify-end">
           <el-button @click="dialogVisible = false">

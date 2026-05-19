@@ -89,7 +89,11 @@ export class LoongCalendar extends EventEmitter<LoongEvents> {
 const map = new Map<string, LoongCalendar>()
 
 export function useCalendar(id: string, options: LoongCalendarOptions = {}) {
-  if (!map.has(id)) map.set(id, new LoongCalendar(id, options, map))
+  if (!map.has(id)) {
+    map.set(id, new LoongCalendar(id, options, map))
+  } else if (Object.keys(options).length > 0) {
+    (map.get(id) as LoongCalendar).options.update(options)
+  }
   return map.get(id) as LoongCalendar
 }
 

@@ -23,6 +23,7 @@ export class Login extends MadisonAddon {
   static readonly LOGIN_KEY = 'LOGIN_K'
   static readonly LOGIN_PASSWORD = 'LOGIN_P'
   static readonly USER_ID_KEY = 'LOGIN_UID'
+  static readonly DISPLAY_NAME_KEY = 'LOGIN_DN'
 
   private __state: LoginState = LoginState.READY
   private __loginPromise: DefPromiseHelper = new DefPromiseHelper()
@@ -39,6 +40,10 @@ export class Login extends MadisonAddon {
 
   get logged() {
     return this.__isLogin
+  }
+
+  get displayName() {
+    return this.getStoredDisplayName()
   }
 
   constructor(madison: Madison) {
@@ -109,6 +114,8 @@ export class Login extends MadisonAddon {
     localSet(Login.TYPE_KEY, options.type)
     localSet(Login.LOGIN_KEY, options.key)
     localSet(Login.LOGIN_PASSWORD, passwordEncrypted)
+    const displayName = this.resolveDisplayName(data.data as unknown as Record<string, unknown>, options.key)
+    localSet(Login.DISPLAY_NAME_KEY, displayName)
     const normalizedUserId = this.resolveLoginUserId(data.data as unknown as Record<string, unknown>)
     if (normalizedUserId) {
       localSet(Login.USER_ID_KEY, normalizedUserId)
@@ -146,6 +153,7 @@ export class Login extends MadisonAddon {
       localSet(Login.LOGIN_KEY, '')
       localSet(Login.LOGIN_PASSWORD, '')
       localDel(Login.USER_ID_KEY)
+      localDel(Login.DISPLAY_NAME_KEY)
       this.__madison.emit('logout')
       return true
     }
@@ -221,6 +229,42 @@ export class Login extends MadisonAddon {
     return String(value).trim()
   }
 
+  private normalizeDisplayName(value: unknown): string {
+    if (value === undefined || value === null) return ''
+    return String(value).trim()
+  }
+
+  private getStoredDisplayName() {
+    const stored = this.normalizeDisplayName(localGet(Login.DISPLAY_NAME_KEY, ''))
+    if (stored) return stored
+    return this.normalizeDisplayName(localGet(Login.LOGIN_KEY, ''))
+  }
+
+  private resolveDisplayName(payload: Record<string, unknown>, fallback: string) {
+    const directCandidate =
+      payload.nickname ||
+      payload.username ||
+      payload.user_name ||
+      payload.name
+
+    const normalizedDirect = this.normalizeDisplayName(directCandidate)
+    if (normalizedDirect) return normalizedDirect
+
+    const nestedSources = [payload.user, payload.data, payload.profile]
+    for (const source of nestedSources) {
+      if (!source || typeof source !== 'object') continue
+      const candidate =
+        (source as Record<string, unknown>).nickname ||
+        (source as Record<string, unknown>).username ||
+        (source as Record<string, unknown>).user_name ||
+        (source as Record<string, unknown>).name
+      const normalized = this.normalizeDisplayName(candidate)
+      if (normalized) return normalized
+    }
+
+    return this.normalizeDisplayName(fallback)
+  }
+
   private resolveLoginUserId(payload: Record<string, unknown>) {
     const normalizedDirect = this.extractUserIdFromPayload(payload)
     if (normalizedDirect) return normalizedDirect
@@ -259,6 +303,14 @@ export class Login extends MadisonAddon {
   private restoreLoginFromToken(): boolean {
     const token = getToken()
     if (!token) return false
+
+    const storedLoginKey = this.normalizeDisplayName(localGet(Login.LOGIN_KEY, ''))
+    const displayName = this.getStoredDisplayName() || storedLoginKey
+    if (displayName) {
+      localSet(Login.DISPLAY_NAME_KEY, displayName)
+    } else {
+      localDel(Login.DISPLAY_NAME_KEY)
+    }
 
     const normalizedUserId = this.resolveUserIdFromToken(token)
     if (normalizedUserId) {

@@ -110,6 +110,12 @@ const defaultOptions: LoongCalendarRequiredOptions = {
       { range: '10s', displayHeight: 60, maxHeight: 80 }
     ]
   },
+  scheduleDisplay: {
+    layoutMode: 'precise',
+    snapMinutes: 60,
+    minDurationMinutes: 20,
+    durationStepMinutes: 20
+  },
   mode: 'default',
   categories: []
 }
@@ -118,14 +124,23 @@ function isPlainObject(value: any) {
   return Object.prototype.toString.call(value) === '[object Object]'
 }
 
+function mergeThemeOptions(target: Record<string, any>, source: Record<string, any>) {
+  const nextTarget = { ...target }
+  for (const themeKey in source) {
+    const targetTheme = isPlainObject(nextTarget[themeKey]) ? nextTarget[themeKey] : {}
+    const sourceTheme = source[themeKey]
+    nextTarget[themeKey] = isPlainObject(sourceTheme)
+      ? deepMerge({ ...targetTheme }, sourceTheme)
+      : sourceTheme
+  }
+  return nextTarget
+}
+
 function deepMerge(target: any, source: any) {
   for (const key in target) {
     // themes合并、覆盖
     if (key === 'themes' && isPlainObject(source[key])) {
-      target[key] = {
-        ...target[key],
-        ...source[key]
-      }
+      target[key] = mergeThemeOptions(target[key], source[key])
     } else if (key === 'categories' && Array.isArray(source[key])) {
       target[key] = source[key]
     } else if (key === 'cells' && Array.isArray(source[key])) {
@@ -156,6 +171,12 @@ export class Options extends LoongAddon {
     this.setTheme(theme || 'light')
   }
 
+  update(options: LoongCalendarOptions) {
+    deepMerge(this.__options, options)
+    this.__loong.emit('theme-change', this.__currentTheme)
+    this.__loong.emit('force-render')
+  }
+
   /**
    * 应用主题
    * @param theme 主题名称
@@ -170,15 +191,20 @@ export class Options extends LoongAddon {
    * @param category 分类名称
    */
   getColor(category: string | number) {
+    const colors = Array.isArray(this.__colors) && this.__colors.length > 0
+      ? this.__colors
+      : lightOptions.colors
+
     if (typeof category === 'number') {
-      const i = category % this.__colors.length
-      return this.__colors[i]
+      const i = category % colors.length
+      return colors[i]
     } else {
-      const i = this.__categories.indexOf(category) % this.__colors.length
+      const categories = Array.isArray(this.__categories) ? this.__categories : []
+      const i = categories.indexOf(category) % colors.length
       if (i === -1) {
-        return this.__colors[0]
+        return colors[0]
       }
-      return this.__colors[i]
+      return colors[i]
     }
   }
 
@@ -194,8 +220,8 @@ export class Options extends LoongAddon {
     const theme = this.__currentTheme
     const options = this.__options
     const themeOptions = this.__options.themes[theme] || lightOptions
-    this.__colors = themeOptions.colors
-    this.__categories = this.__options.categories
+    this.__colors = Array.isArray(themeOptions.colors) && themeOptions.colors.length > 0 ? themeOptions.colors : lightOptions.colors
+    this.__categories = Array.isArray(this.__options.categories) ? this.__options.categories : []
     const gridOptions = {
       timeWidth: options.grid.timeWidth,
       cellMinWidth: options.grid.cellMinWidth,
@@ -248,7 +274,11 @@ export class Options extends LoongAddon {
       timeFontFamily: themeOptions.schedule.timeFontFamily,
       timeFontSize: themeOptions.schedule.timeFontSize,
       titleFontSize: themeOptions.schedule.titleFontSize,
-      contentFontSize: themeOptions.schedule.contentFontSize
+      contentFontSize: themeOptions.schedule.contentFontSize,
+      layoutMode: options.scheduleDisplay.layoutMode,
+      snapMinutes: options.scheduleDisplay.snapMinutes,
+      minDurationMinutes: options.scheduleDisplay.minDurationMinutes,
+      durationStepMinutes: options.scheduleDisplay.durationStepMinutes
     }
     const scrollbarRendererOptions: LoongCalendarScrollbarRendererOptions = {
       dark: themeOptions.dark,
@@ -265,6 +295,10 @@ export class Options extends LoongAddon {
       scrollbarRendererOptions
     }
     return res
+  }
+
+  getScheduleDisplayOptions() {
+    return this.__options.scheduleDisplay
   }
 
   protected destroy(): void {}

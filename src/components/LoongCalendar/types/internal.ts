@@ -54,6 +54,10 @@ export interface LoongCalendarScheduleRendererOptions {
   timeFontSize: number
   titleFontSize: number
   contentFontSize: number
+  layoutMode: 'precise' | 'block'
+  snapMinutes: number
+  minDurationMinutes: number
+  durationStepMinutes: number
 }
 
 export interface LoongCalendarScrollbarRendererOptions {

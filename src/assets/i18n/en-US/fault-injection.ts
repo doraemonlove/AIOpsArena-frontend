@@ -43,7 +43,8 @@ export default {
     Duration: 'Duration',
     Cancel: 'Cancel',
     Warning: 'Warning',
-    DeletePrompt: 'Are you sure you want to <span class="text-red-500">DELETE</span> fault',
+    DeletePromptPrefix: 'Are you sure you want to',
+    DeletePromptSuffix: 'fault',
     Q: '?',
     Ongoing: 'Do not delete ongoing faults'
   },

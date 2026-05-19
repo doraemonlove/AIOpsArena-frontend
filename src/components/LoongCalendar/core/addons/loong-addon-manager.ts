@@ -21,6 +21,13 @@ import {
 import { BinaryHeap, checkScheduleCanDisplay, getAllValueBiggerThan, getSundayOfTheWeek, intersection, LRUCache, now } from '../utils'
 import type { BPlusTreeLeafNode } from '../utils/BPlusTree/leaf'
 
+function toStepTimestamp(timestamp: number, stepMinutes: number, mode: 'floor' | 'ceil') {
+  const step = Math.max(1, stepMinutes) * 60 * 1000
+  return mode === 'floor'
+    ? Math.floor(timestamp / step) * step
+    : Math.ceil(timestamp / step) * step
+}
+
 export class ScheduleRenderData {
   readonly id: string
   readonly schedule: LoongSchedule
@@ -28,6 +35,8 @@ export class ScheduleRenderData {
   readonly draw: boolean
   readonly startTimestamp: number
   readonly endTimestamp: number
+  readonly layoutStartTimestamp: number
+  readonly layoutEndTimestamp: number
   /** 宽度，单位：%，去renderer里面计算具体的px */
   width: number = 0
   /** 高度（duration），单位：s，去renderer里面计算具体的px */
@@ -42,12 +51,32 @@ export class ScheduleRenderData {
   colAmount: number = 1
   /** 占几列*/
   hasColAmount: number = 1
-  constructor(schedule: LoongSchedule, timeRange: TimeRange, draw: boolean = true) {
+  constructor(
+    schedule: LoongSchedule,
+    timeRange: TimeRange,
+    draw: boolean = true,
+    layoutMode: 'precise' | 'block' = 'precise',
+    snapMinutes: number = 60,
+    minDurationMinutes: number = 20,
+    durationStepMinutes: number = 20
+  ) {
     this.id = Math.random().toString(36).substring(2)
     this.schedule = schedule
     this.timeRange = timeRange
     this.startTimestamp = timeRange.startTimestamp
     this.endTimestamp = timeRange.endTimestamp
+    if (layoutMode === 'block') {
+      const layoutStart = toStepTimestamp(this.startTimestamp, snapMinutes, 'floor')
+      const actualDuration = Math.max(1, this.endTimestamp - this.startTimestamp)
+      const durationStep = Math.max(1, durationStepMinutes) * 60 * 1000
+      const minDuration = Math.max(1, minDurationMinutes) * 60 * 1000
+      const quantizedDuration = Math.ceil(actualDuration / durationStep) * durationStep
+      this.layoutStartTimestamp = layoutStart
+      this.layoutEndTimestamp = layoutStart + Math.max(minDuration, quantizedDuration)
+    } else {
+      this.layoutStartTimestamp = this.startTimestamp
+      this.layoutEndTimestamp = this.endTimestamp
+    }
     this.draw = draw
   }
 }
@@ -680,13 +709,22 @@ export class Manager extends LoongAddon {
     /** 已经按照起始时刻排好序 */
     const timeRangeList = this.__scheduleDatabase.searchTimeRange(date)
     if (timeRangeList === undefined) return
+    const scheduleDisplay = this.__loong.options.getScheduleDisplayOptions()
     type MeetingColumeData = ScheduleRenderData[] // 最晚结束的排在最前
     type MeetingGroupData = MeetingColumeData[]
     type FullMeetingData = MeetingGroupData[]
     const meetings: FullMeetingData = [[[]]]
     let colAmount = 1
     timeRangeList.forEach((timeRange) => {
-      const renderData = new ScheduleRenderData(timeRange.schedule, timeRange)
+      const renderData = new ScheduleRenderData(
+        timeRange.schedule,
+        timeRange,
+        true,
+        scheduleDisplay.layoutMode,
+        scheduleDisplay.snapMinutes,
+        scheduleDisplay.minDurationMinutes,
+        scheduleDisplay.durationStepMinutes
+      )
       const lastMeetingGroup = meetings[meetings.length - 1]
       const length = lastMeetingGroup.length
       // 因为colume是最晚结束的排在最前，所以此时排完group的顺序就是结束时间从早到晚
@@ -697,7 +735,7 @@ export class Manager extends LoongAddon {
       if (
         length > 0 &&
         lastMeetingGroup[length - 1].length > 0 &&
-        lastMeetingGroup[length - 1][0].endTimestamp > renderData.startTimestamp
+        lastMeetingGroup[length - 1][0].layoutEndTimestamp > renderData.layoutStartTimestamp
       ) {
         inside = true
       }
@@ -705,7 +743,7 @@ export class Manager extends LoongAddon {
         // 是否需要新的一列（不可以直接插入）
         let needANewColume = false
         // 最小结束时间大于当前开始时间，无法直接插入，需要新增一列
-        if (lastMeetingGroup[0][0].endTimestamp > renderData.startTimestamp) needANewColume = true
+        if (lastMeetingGroup[0][0].layoutEndTimestamp > renderData.layoutStartTimestamp) needANewColume = true
         if (needANewColume) {
           // 列数加一
           colAmount++
@@ -746,18 +784,18 @@ export class Manager extends LoongAddon {
       group.forEach((column, ci) => {
         column.forEach((renderData) => {
           if (!renderData.draw) return
-          const startTimestamp = renderData.startTimestamp
-          const endTimestamp = renderData.endTimestamp
+          const startTimestamp = renderData.layoutStartTimestamp
+          const endTimestamp = renderData.layoutEndTimestamp
           const renderDataColAmount = renderData.colAmount
           let nowColumeIndex = ci
           while (
             nowColumeIndex > 0 &&
             group[nowColumeIndex - 1].findIndex((rd) => {
-              if (rd.startTimestamp <= startTimestamp && rd.endTimestamp > startTimestamp) {
+              if (rd.layoutStartTimestamp <= startTimestamp && rd.layoutEndTimestamp > startTimestamp) {
                 return true
-              } else if (rd.endTimestamp >= endTimestamp && rd.startTimestamp < endTimestamp) {
+              } else if (rd.layoutEndTimestamp >= endTimestamp && rd.layoutStartTimestamp < endTimestamp) {
                 return true
-              } else if (rd.startTimestamp >= startTimestamp && rd.endTimestamp <= endTimestamp) {
+              } else if (rd.layoutStartTimestamp >= startTimestamp && rd.layoutEndTimestamp <= endTimestamp) {
                 return true
               }
               return false
@@ -767,7 +805,17 @@ export class Manager extends LoongAddon {
           }
           // 塞入占位数据
           for (let i = nowColumeIndex; i < ci; i++) {
-            group[i].push(new ScheduleRenderData(renderData.schedule, renderData.timeRange, false))
+            group[i].push(
+              new ScheduleRenderData(
+                renderData.schedule,
+                renderData.timeRange,
+                false,
+                scheduleDisplay.layoutMode,
+                scheduleDisplay.snapMinutes,
+                scheduleDisplay.minDurationMinutes,
+                scheduleDisplay.durationStepMinutes
+              )
+            )
           }
           // 更新数据
           // 左侧如果有空间，可以向左扩张
@@ -783,17 +831,17 @@ export class Manager extends LoongAddon {
         const columeAmount = group.length
         column.forEach((renderData) => {
           if (!renderData.draw) return
-          const startTimestamp = renderData.startTimestamp
-          const endTimestamp = renderData.endTimestamp
+          const startTimestamp = renderData.layoutStartTimestamp
+          const endTimestamp = renderData.layoutEndTimestamp
           let nowColumeIndex = ci
           while (
             nowColumeIndex < columeAmount - 1 &&
             group[nowColumeIndex + 1].findIndex((rd) => {
-              if (rd.startTimestamp <= startTimestamp && rd.endTimestamp > startTimestamp) {
+              if (rd.layoutStartTimestamp <= startTimestamp && rd.layoutEndTimestamp > startTimestamp) {
                 return true
-              } else if (rd.endTimestamp >= endTimestamp && rd.startTimestamp < endTimestamp) {
+              } else if (rd.layoutEndTimestamp >= endTimestamp && rd.layoutStartTimestamp < endTimestamp) {
                 return true
-              } else if (rd.startTimestamp >= startTimestamp && rd.endTimestamp <= endTimestamp) {
+              } else if (rd.layoutStartTimestamp >= startTimestamp && rd.layoutEndTimestamp <= endTimestamp) {
                 return true
               }
               return false
@@ -803,7 +851,17 @@ export class Manager extends LoongAddon {
           }
           // 塞入占位数据
           for (let i = ci + 1; i <= nowColumeIndex; i++) {
-            group[i].push(new ScheduleRenderData(renderData.schedule, renderData.timeRange, false))
+            group[i].push(
+              new ScheduleRenderData(
+                renderData.schedule,
+                renderData.timeRange,
+                false,
+                scheduleDisplay.layoutMode,
+                scheduleDisplay.snapMinutes,
+                scheduleDisplay.minDurationMinutes,
+                scheduleDisplay.durationStepMinutes
+              )
+            )
           }
           // 更新数据
           // 宽度也对应变化，具体width在计算右侧空间时再算
