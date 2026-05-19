@@ -23,8 +23,6 @@ import { DatasetIns } from './dataset'
 import { DatasetStatus, type CreateDatasetOptions } from '../types'
 import type { Madison } from '@/core/madison/core'
 import { createLoopQuery } from '@/core/madison/utils'
-import type { AxiosResponse } from 'axios'
-import type { MadisonApiRes } from '@/core/madison/types'
 
 export class Dataset extends MadisonAddon {
   private __dataIsGotten = false
@@ -35,8 +33,10 @@ export class Dataset extends MadisonAddon {
   public privateDatasets: ComputedRef<DatasetIns[]> = computed(() => {
     return Array.from(this.__datasets.values()).filter((item) => item.canDelete)
   })
-  private __stop: (() => void) | null = null
   private __datasetStopFuncs: Map<number, () => void> = new Map()
+  private __listPollTimer: NodeJS.Timeout | null = null
+  private readonly __listPollInterval = 60000
+  private readonly __statusPollInterval = 5000
 
   private __refreshTimer: NodeJS.Timeout | null = null
   private readonly __refreshInterval: number = 5
@@ -60,8 +60,8 @@ export class Dataset extends MadisonAddon {
     this.__dataIsGotten = false
     this.__datasets.clear()
     if (this.__refreshTimer) clearInterval(this.__refreshTimer)
+    if (this.__listPollTimer) clearTimeout(this.__listPollTimer)
     this.__refreshTime.value = 0
-    if (this.__stop) this.__stop()
     Array.from(this.__datasetStopFuncs.values()).forEach((item) => item())
     this.__datasetStopFuncs.clear()
     this.__refreshing.value = false
@@ -79,19 +79,6 @@ export class Dataset extends MadisonAddon {
     if (!can) return
     if (this.__dataIsGotten) return
     await this.queryDataset()
-    const func = this.queryDataset.bind(this) as unknown as () => Promise<
-      AxiosResponse<MadisonApiRes<void>, any>
-    >
-    const { stop } = createLoopQuery(
-      {},
-      func,
-      () => false,
-      () => {},
-      () => {},
-      () => {},
-      30000
-    )
-    this.__stop = stop
     this.__dataIsGotten = true
   }
 
@@ -114,7 +101,38 @@ export class Dataset extends MadisonAddon {
       keys.forEach((id) => {
         this.__datasets.delete(id)
       })
+      this.syncListPolling()
     }
+  }
+
+  private hasRunningDatasets() {
+    return Array.from(this.__datasets.values()).some((dataset) => {
+      const collecting =
+        dataset.collectStatus !== DatasetStatus.SUCCESS &&
+        dataset.collectStatus !== DatasetStatus.FAILURE
+      const uploading =
+        dataset.collectStatus === DatasetStatus.SUCCESS &&
+        dataset.uploadStatus !== DatasetStatus.NONEXISTENT &&
+        dataset.uploadStatus !== DatasetStatus.SUCCESS &&
+        dataset.uploadStatus !== DatasetStatus.FAILURE
+      return collecting || uploading
+    })
+  }
+
+  private stopListPolling() {
+    if (this.__listPollTimer) {
+      clearTimeout(this.__listPollTimer)
+      this.__listPollTimer = null
+    }
+  }
+
+  private syncListPolling() {
+    this.stopListPolling()
+    if (!this.hasRunningDatasets()) return
+    this.__listPollTimer = setTimeout(() => {
+      this.__listPollTimer = null
+      void this.queryDataset()
+    }, this.__listPollInterval)
   }
 
   async refresh() {
@@ -230,7 +248,7 @@ export class Dataset extends MadisonAddon {
       () => {
         dataset.collectStatus = DatasetStatus.FAILURE
       },
-      1000
+      this.__statusPollInterval
     )
     this.__datasetStopFuncs.set(datasetId, stop)
   }
@@ -265,7 +283,7 @@ export class Dataset extends MadisonAddon {
       () => {
         dataset.uploadStatus = DatasetStatus.FAILURE
       },
-      1000
+      this.__statusPollInterval
     )
     this.__datasetStopFuncs.set(datasetId, stop)
   }

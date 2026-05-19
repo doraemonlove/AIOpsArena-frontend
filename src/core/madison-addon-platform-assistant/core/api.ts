@@ -1,10 +1,6 @@
 import { getToken, service, message } from '@/core/madison/utils'
 import type { MadisonApiRes } from '@/core/madison/types'
-import {
-  AGENT_SERVER_BASE_URL,
-  BACKEND_BASE_URL,
-  PLATFORM_ASSISTANT_APP_NAME
-} from '../types'
+import { BACKEND_BASE_URL, PLATFORM_ASSISTANT_APP_NAME } from '../types'
 import type {
   AssistantStreamPart,
   AssistantSession,
@@ -107,28 +103,16 @@ export async function deleteAssistantSession(payload: DeleteAssistantSessionPayl
 }
 
 export async function getAssistantSession(payload: GetAssistantSessionPayload) {
-  const response = await fetch(
-    `${AGENT_SERVER_BASE_URL}/apps/${encodeURIComponent(payload.app_name || PLATFORM_ASSISTANT_APP_NAME)}/users/${encodeURIComponent(payload.user_id)}/sessions/${encodeURIComponent(payload.session_id)}`,
-    {
-      method: 'GET',
-      headers: buildAssistantHeaders()
+  const response = await service<AssistantSessionDetail>({
+    baseURL: BACKEND_BASE_URL,
+    url: '/session/detail',
+    method: 'get',
+    params: {
+      session_id: payload.session_id
     }
-  )
+  })
 
-  if (!response.ok) {
-    let errorMsg = `查询会话消息失败（${response.status}）`
-    try {
-      const data = (await response.json()) as MadisonApiRes<any>
-      errorMsg = data?.message || errorMsg
-    } catch (_) {
-      try {
-        errorMsg = (await response.text()) || errorMsg
-      } catch (_) {}
-    }
-    throw new Error(errorMsg)
-  }
-
-  return (await response.json()) as AssistantSessionDetail
+  return unwrapAssistantResponse(response, '查询会话消息失败')
 }
 
 function buildAssistantHeaders() {
@@ -156,12 +140,12 @@ export async function runAssistantSSE(
     onError?: (error: Error) => void
   }
 ) {
-  const response = await fetch(`${AGENT_SERVER_BASE_URL}/run_sse`, {
+  const response = await fetch(`${BACKEND_BASE_URL}/session/run_sse`, {
     method: 'POST',
     headers: buildAssistantHeaders(),
     body: JSON.stringify({
-      ...payload,
-      app_name: payload.app_name || PLATFORM_ASSISTANT_APP_NAME
+      session_id: payload.session_id,
+      new_message: payload.new_message
     })
   })
 
