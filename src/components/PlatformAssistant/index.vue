@@ -86,7 +86,8 @@ const resolvedUserId = computed(() => {
 })
 
 const hasAuthToken = computed(() => !!getToken())
-const isAuthRequired = computed(() => !hasAuthToken.value || !!authHint.value)
+const isPlatformAuthenticated = computed(() => logged.value && hasAuthToken.value)
+const isAuthRequired = computed(() => !isPlatformAuthenticated.value)
 
 watch(isOpen, async (open) => {
   if (!open) return
@@ -98,11 +99,22 @@ watch(isOpen, async (open) => {
 
 watch(
   logged,
-  async () => {
+  async (nextLogged) => {
+    if (nextLogged && hasAuthToken.value) {
+      authHint.value = ''
+      listError.value = ''
+      sseError.value = ''
+    }
     await syncResolvedUserIdAsync()
   },
   { immediate: true }
 )
+
+watch(hasAuthToken, (hasToken) => {
+  if (hasToken && logged.value) {
+    authHint.value = ''
+  }
+})
 
 watch(
   () => madison.testbed.testbeds.value.map((item) => item.createdPersonId).join(','),
@@ -128,7 +140,7 @@ watch(
 async function loadSessions() {
   await syncResolvedUserIdAsync()
   if (isLoadingSessions.value) return
-  if (!hasAuthToken.value) {
+  if (!isPlatformAuthenticated.value) {
     enterAuthRequiredState(t('PlatformAssistant.Auth.ViewSessions'))
     return
   }
@@ -179,7 +191,7 @@ async function loadSessions() {
 async function handleCreateSession() {
   await syncResolvedUserIdAsync()
   if (isCreatingSession.value) return
-  if (!hasAuthToken.value) {
+  if (!isPlatformAuthenticated.value) {
     enterAuthRequiredState(t('PlatformAssistant.Auth.CreateSession'))
     return
   }
@@ -249,7 +261,7 @@ async function sendMessage() {
 async function sendMessageText(text: string) {
   await syncResolvedUserIdAsync()
   if (!text || isSending.value) return
-  if (!hasAuthToken.value) {
+  if (!isPlatformAuthenticated.value) {
     enterAuthRequiredState(t('PlatformAssistant.Auth.Chat'))
     return
   }
@@ -318,7 +330,7 @@ function ensureUserId(errorText: string) {
 }
 
 function toggleOpen() {
-  if (!isOpen.value && hasAuthToken.value && authHint.value) {
+  if (!isOpen.value && isPlatformAuthenticated.value && authHint.value) {
     authHint.value = ''
   }
   isOpen.value = !isOpen.value
@@ -914,6 +926,9 @@ function enterAuthRequiredState(hint: string) {
 
 function handleAssistantAuthError(error: unknown, hint: string) {
   if (!isAuthError(error)) return false
+  if (!isPlatformAuthenticated.value || shouldInvalidatePlatformSession(error)) {
+    madison.login.invalidateSession(true)
+  }
   enterAuthRequiredState(hint)
   return true
 }
@@ -929,6 +944,17 @@ function isAuthError(error: unknown) {
     normalized.includes('please login') ||
     normalized.includes('please log in') ||
     normalized.includes('invalid token')
+  )
+}
+
+function shouldInvalidatePlatformSession(error: unknown) {
+  const text = error instanceof Error ? error.message : String(error || '')
+  const normalized = text.toLowerCase()
+  return (
+    normalized.includes('token expired') ||
+    normalized.includes('invalid token') ||
+    normalized.includes('401') ||
+    normalized.includes('unauthorized')
   )
 }
 

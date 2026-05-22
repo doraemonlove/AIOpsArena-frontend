@@ -63,7 +63,7 @@ export class Login extends MadisonAddon {
    * @returns
    */
   async login(options?: LoginOptions): Promise<boolean> {
-    if (this.__state === LoginState.LOGGED) return true
+    if (!options && this.__state === LoginState.LOGGED) return true
     if (!options) {
       if (this.restoreLoginFromToken()) {
         return true
@@ -160,6 +160,31 @@ export class Login extends MadisonAddon {
     return false
   }
 
+  invalidateSession(keepCredentials: boolean = true): boolean {
+    const hadSession =
+      this.__state === LoginState.LOGGED || !!getToken() || !!localGet(Login.LOGIN_KEY, '')
+
+    removeToken()
+    localDel(Login.USER_ID_KEY)
+    localDel(Login.DISPLAY_NAME_KEY)
+    this.__isLogin.value = false
+
+    if (!keepCredentials) {
+      localSet(Login.LOGIN_KEY, '')
+      localSet(Login.LOGIN_PASSWORD, '')
+      this.__state = LoginState.FAILURE
+      this.__loginPromise.resolve()
+      this.__loginPromise = new DefPromiseHelper()
+      return hadSession
+    }
+
+    const hasStoredCredentials = !!localGet(Login.LOGIN_KEY, '') && !!localGet(Login.LOGIN_PASSWORD, '')
+    this.__state = hasStoredCredentials ? LoginState.READY : LoginState.FAILURE
+    this.__loginPromise.resolve()
+    this.__loginPromise = new DefPromiseHelper()
+    return hadSession
+  }
+
   precheck(to: RouteLocationNormalized, from: RouteLocationNormalized): RouterPromiseSyncFuncRes {
     if (this.__state === LoginState.LOGOUT) {
       this.__state = LoginState.READY
@@ -205,11 +230,17 @@ export class Login extends MadisonAddon {
   }
 
   private resolveUserIdFromToken(token: string): string {
-    if (!token || token.split('.').length < 2) return ''
+    const payload = this.decodeTokenPayload(token)
+    if (!payload) return ''
+    return this.extractUserIdFromPayload(payload)
+  }
+
+  private decodeTokenPayload(token: string): Record<string, unknown> | null {
+    if (!token || token.split('.').length < 2) return null
 
     try {
-      const payload = token.split('.')[1]
-      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+      const rawPayload = token.split('.')[1]
+      const normalized = rawPayload.replace(/-/g, '+').replace(/_/g, '/')
       const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
       const decoded = decodeURIComponent(
         atob(padded)
@@ -217,11 +248,20 @@ export class Login extends MadisonAddon {
           .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
           .join('')
       )
-      const data = JSON.parse(decoded) as Record<string, unknown>
-      return this.extractUserIdFromPayload(data)
+      return JSON.parse(decoded) as Record<string, unknown>
     } catch (_) {
-      return ''
+      return null
     }
+  }
+
+  private isTokenExpired(token: string): boolean {
+    const payload = this.decodeTokenPayload(token)
+    if (!payload) return true
+
+    const expiresAt = payload.exp
+    if (typeof expiresAt !== 'number') return false
+
+    return expiresAt * 1000 <= Date.now()
   }
 
   private normalizeUserId(value: unknown): string {
@@ -303,6 +343,10 @@ export class Login extends MadisonAddon {
   private restoreLoginFromToken(): boolean {
     const token = getToken()
     if (!token) return false
+    if (this.isTokenExpired(token)) {
+      this.invalidateSession(true)
+      return false
+    }
 
     const storedLoginKey = this.normalizeDisplayName(localGet(Login.LOGIN_KEY, ''))
     const displayName = this.getStoredDisplayName() || storedLoginKey
