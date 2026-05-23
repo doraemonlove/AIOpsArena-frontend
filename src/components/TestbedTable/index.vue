@@ -48,6 +48,13 @@ const loadDialogVisible = ref(false)
 const microserviceSelectDialogVisible = ref(false)
 const testbedCreateDialogVisible = ref(false)
 const createParams = reactive<CreateParamsData[]>([])
+const hasReachedTestbedLimit = computed(() => !madison.testbed.canCreate.value)
+const createLimitMessage = computed(() =>
+  t('Testbed.CreateLimitReached', {
+    used: madison.testbed.usedTestbeds.value,
+    limit: madison.testbed.maxTestbeds.value
+  })
+)
 const createLoadOptions = computed(() => {
   const options: Record<string, string | number> = {}
   createParams.forEach((param) => {
@@ -64,7 +71,10 @@ const allowReplica = ref(true)
 let createLoadTestbed: Testbed | null = null
 
 function openCreateSelector() {
-  if (!madison.testbed.canCreate.value) return
+  if (!madison.testbed.canCreate.value) {
+    message(createLimitMessage.value, 'warning')
+    return
+  }
   microserviceSelectDialogVisible.value = true
 }
 
@@ -177,7 +187,7 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
       <el-button
         size="small"
         plain
-        :disabled="!madison.testbed.canCreate"
+        :type="hasReachedTestbedLimit ? 'info' : 'default'"
         @click="openCreateSelector"
       >
         {{ t('Testbed.Add') }}
@@ -216,6 +226,12 @@ const tagType: Record<string, 'success' | 'warning' | 'info' | 'primary' | 'dang
       <el-table-column
         prop="description"
         :label="t('Testbed.Description')"
+      />
+      <el-table-column
+        prop="namespace"
+        :label="t('Testbed.Namespace')"
+        min-width="220"
+        show-overflow-tooltip
       />
       <el-table-column
         prop="localeCreatedTime"

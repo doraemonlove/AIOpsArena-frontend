@@ -4,6 +4,7 @@ export default {
   Name: '名字',
   Microservice: '微服务',
   Description: '描述',
+  Namespace: 'Namespace',
   CreateTime: '创建时间',
   ServiceStatus: '运行状态',
   TrafficStatus: '流量状态',
@@ -14,6 +15,7 @@ export default {
   Delete: '删除',
   Usage: '已使用',
   Limit: '上限',
+  CreateLimitReached: '当前试验台数量已达上限（{used}/{limit}），无法继续增加。',
   Create: {
     Title: '创建注入',
     Cancel: '取消',

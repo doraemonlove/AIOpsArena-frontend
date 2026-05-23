@@ -9,7 +9,7 @@ const navList = [
   ['Nav.Home', '/', 'home'],
   ['Nav.Testbed', '/testbed', 'testbed'],
   ['Nav.FaultInjection', '/fault-injection', 'faultinjection'],
-  ['Nav.Data', '/data', 'database'],
+  ['Nav.Data', '/data', 'data'],
   ['Nav.Dataset', '/dataset', 'dataset'],
   ['Nav.Algorithm', '/algorithm', 'algorithm'],
   ['Nav.TrainRuns', '/train-runs', 'trainruns'],

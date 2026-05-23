@@ -4,6 +4,7 @@ export default {
   Name: 'Name',
   Microservice: 'Microservice',
   Description: 'Description',
+  Namespace: 'Namespace',
   CreateTime: 'CreateTime',
   ServiceStatus: 'ServiceStatus',
   TrafficStatus: 'TrafficStatus',
@@ -14,6 +15,7 @@ export default {
   Delete: 'Delete',
   Usage: 'Usage',
   Limit: 'Limit',
+  CreateLimitReached: 'Testbed quota reached ({used}/{limit}); no more testbeds can be added.',
   Create: {
     Title: 'Create load',
     Cancel: 'Cancel',
