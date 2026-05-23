@@ -19,7 +19,15 @@ const avatarModules = import.meta.glob('@/assets/image/animal/*.svg', {
 }) as Record<string, string>
 
 const avatarOptions = Object.values(avatarModules)
-const randomAvatar = avatarOptions[Math.floor(Math.random() * avatarOptions.length)] || ''
+
+function getStableAvatar(source: string) {
+  if (avatarOptions.length === 0) return ''
+  let hash = 0
+  for (let i = 0; i < source.length; i++) {
+    hash = (hash * 31 + source.charCodeAt(i)) >>> 0
+  }
+  return avatarOptions[hash % avatarOptions.length] || ''
+}
 
 const displayName = computed(() => {
   if (!logged.value) return '未登录'
@@ -37,7 +45,7 @@ function toLogin() {
 
 const currentAvatar = computed(() => {
   if (!logged.value) return unauthAvatar
-  return randomAvatar
+  return getStableAvatar(displayName.value || 'User')
 })
 </script>
 
